@@ -5,12 +5,12 @@ const Deudor = require("../models/deudorModel");
 
 exports.registrarCobro = async (req, res) => {
   try {
-    const { collector_Id, debtor_Id, amount, payment_Date, payment_Type } =
+    const { collector_id, debtor_id, amount, payment_date, payment_type } =
       req.body;
 
     // Verifica si el collectorId y debtorId existen
-    const cobrador = await Cobrador.findByPk(collector_Id);
-    const deudor = await Deudor.findByPk(debtor_Id);
+    const cobrador = await Cobrador.findByPk(collector_id);
+    const deudor = await Deudor.findByPk(debtor_id);
 
     if (!cobrador) {
       return res.status(404).json({ message: "El cobrador no existe" });
@@ -45,11 +45,11 @@ exports.registrarCobro = async (req, res) => {
 
     // Crear el cobro
     const nuevoCobro = await Cobro.create({
-      collector_Id,
-      debtor_Id,
+      collector_id,
+      debtor_id,
       amount,
-      payment_Date,
-      payment_Type,
+      payment_date,
+      payment_type,
     });
 
     // Actualizar el balance del deudor y guardarlo
@@ -95,7 +95,7 @@ exports.obtenerCobrosPorCobrador = async (req, res) => {
   try {
     const { collectorId } = req.params;
     const cobros = await Cobro.findAll({
-      where: { collector_Id: collectorId },
+      where: { collector_id: collectorId },
     });
     res.json(cobros);
   } catch (error) {
@@ -108,7 +108,7 @@ exports.obtenerCobrosPorCobrador = async (req, res) => {
 exports.obtenerCobrosPorDeudor = async (req, res) => {
   try {
     const { debtorId } = req.params;
-    const cobros = await Cobro.findAll({ where: { debtor_Id: debtorId } });
+    const cobros = await Cobro.findAll({ where: { debtor_id: debtorId } });
     res.json(cobros);
   } catch (error) {
     console.error(error);

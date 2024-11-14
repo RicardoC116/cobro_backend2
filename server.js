@@ -5,9 +5,10 @@ const app = express();
 const port = 3000;
 const cobradoresRoutes = require("./routes/cobradoresRoutes");
 const deudoresRoutes = require("./routes/deudoresRoutes");
-const cortesDiariosRoutes = require("./routes/cortesDiariosRoutes");
+const cortesRoutes = require("./routes/cortesRoutes");
 const cobrosRoutes = require("./routes/cobrosRoutes");
 const db = require("./db");
+
 require("dotenv").config();
 
 // Middleware para habilitar CORS
@@ -22,7 +23,7 @@ db.authenticate()
     console.log("Conexión exitosa a la base de datos");
 
     // Sincronizar la base de datos (crear/actualizar tablas)
-    return db.sync();
+    return db.sync({ alter: true });
   })
   .then(() => {
     console.log("Base de datos sincronizada");
@@ -37,8 +38,7 @@ db.authenticate()
     app.use("/api/cobros", cobrosRoutes);
 
     // Rutas para Cortes Diarios
-    app.use("/api/cortes-diarios", cortesDiariosRoutes); // Solo mantenemos esto
-
+    app.use("/api/cortes", cortesRoutes);
     // Iniciar el servidor solo si la conexión a la BD es exitosa
     app.listen(port, () => {
       console.log(`Servidor corriendo en http://localhost:${port}`);

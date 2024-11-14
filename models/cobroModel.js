@@ -1,46 +1,50 @@
 // models/cobroModel.js
+
 const { DataTypes } = require("sequelize");
 const db = require("../db");
+const Cobrador = require("./cobradorModel");
+const Deudor = require("./deudorModel");
 
 const Cobro = db.define(
   "Cobro",
   {
-    collector_Id: {
+    id: {
       type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: "cobradores",
-        key: "id",
-      },
-      field: "collector_id",
+      autoIncrement: true,
+      primaryKey: true,
     },
-    debtor_Id: {
+    collector_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: "deudores",
+        model: Cobrador,
         key: "id",
       },
-      field: "debtor_id",
+    },
+    debtor_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: Deudor,
+        key: "id",
+      },
     },
     amount: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
     },
-    payment_Date: {
+    payment_date: {
       type: DataTypes.DATE,
       allowNull: false,
-      field: "payment_date",
     },
-    payment_Type: {
+    payment_type: {
       type: DataTypes.ENUM("normal", "liquidación", "primer pago"),
       allowNull: false,
-      field: "payment_type",
     },
   },
   {
     tableName: "cobros",
-    timestamps: false,
+    timestamps: false, // Desactivar los timestamps si no los necesitas
   }
 );
 
