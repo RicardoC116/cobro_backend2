@@ -6,6 +6,7 @@ const port = 3000;
 const cobradoresRoutes = require("./routes/cobradoresRoutes");
 const deudoresRoutes = require("./routes/deudoresRoutes");
 const cobrosRoutes = require("./routes/cobrosRoutes");
+const cortesRoutes = require("./routes/cortesdiariosRoutes");
 const db = require("./db");
 
 require("dotenv").config();
@@ -37,7 +38,7 @@ db.authenticate()
     app.use("/api/cobros", cobrosRoutes);
 
     // Rutas para Cortes Diarios
-    // app.use("/api/cortes", cortesRoutes);
+    app.use("/api/cortes", cortesRoutes);
     // Iniciar el servidor solo si la conexión a la BD es exitosa
     app.listen(port, () => {
       console.log(`Servidor corriendo en http://localhost:${port}`);

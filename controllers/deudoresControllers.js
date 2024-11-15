@@ -26,16 +26,13 @@ exports.createDeudor = async (req, res) => {
   } = req.body;
 
   try {
-    // Buscar el `id` del cobrador usando `phone_number`
     const cobrador = await Cobrador.findOne({ where: { phone_number } });
-
     if (!cobrador) {
-      return res.status(404).json({ error: "Cobrador no encontrado" });
+      return res.status(404).json({ error: "Cobrador no encontrado." });
     }
 
     const balanceInicial = balance - first_payment;
 
-    // Crear el deudor con el `collector_id` correspondiente
     const deudor = await Deudor.create({
       contract_number,
       name,
@@ -49,8 +46,8 @@ exports.createDeudor = async (req, res) => {
 
     res.status(201).json(deudor);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Error al crear el deudor" });
+    console.error("Error al crear el deudor:", error);
+    res.status(500).json({ error: "Error al crear el deudor." });
   }
 };
 

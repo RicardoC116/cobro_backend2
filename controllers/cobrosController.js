@@ -2,48 +2,42 @@
 const Cobro = require("../models/cobroModel");
 const Cobrador = require("../models/cobradorModel");
 const Deudor = require("../models/deudorModel");
+const { Op } = require("sequelize");
 
 exports.registrarCobro = async (req, res) => {
   try {
+    console.log("Datos recibidos:", req.body);
+
     const { collector_id, debtor_id, amount, payment_date, payment_type } =
       req.body;
 
-    // Verifica si el collectorId y debtorId existen
+    // Validar si los IDs de cobrador y deudor existen
     const cobrador = await Cobrador.findByPk(collector_id);
     const deudor = await Deudor.findByPk(debtor_id);
 
     if (!cobrador) {
-      return res.status(404).json({ message: "El cobrador no existe" });
+      return res.status(404).json({ message: "El cobrador no existe." });
     }
     if (!deudor) {
-      return res.status(404).json({ message: "El deudor no existe" });
-    }
-    
-    // Verifica si el monto es mayor a 0
-    if (amount <= 0) {
-      return res
-        .status(400)
-        .json({ message: "El monto del cobro debe ser mayor a 0" });
+      return res.status(404).json({ message: "El deudor no existe." });
     }
 
-    // Verificar si el balance del deudor es 0 o menos
+    // Validar monto y balance
+    if (amount <= 0) {
+      return res.status(400).json({ message: "El monto debe ser mayor a 0." });
+    }
     if (deudor.balance <= 0) {
       return res
         .status(400)
-        .json({ message: "El balance es cero, no se puede realizar el pago" });
+        .json({ message: "El balance del deudor es cero." });
     }
-
-    // Calcular el nuevo balance después del cobro
-    const nuevoBalance = deudor.balance - amount;
-
-    // Verificar si el monto del cobro excede el balance
-    if (nuevoBalance < 0) {
+    if (amount > deudor.balance) {
       return res
         .status(400)
-        .json({ message: "El monto del cobro excede el balance" });
+        .json({ message: "El monto excede el balance del deudor." });
     }
 
-    // Crear el cobro
+    // Registrar el cobro
     const nuevoCobro = await Cobro.create({
       collector_id,
       debtor_id,
@@ -52,66 +46,73 @@ exports.registrarCobro = async (req, res) => {
       payment_type,
     });
 
-    // Actualizar el balance del deudor y guardarlo
-    deudor.balance = nuevoBalance;
+    // Actualizar el balance del deudor
+    deudor.balance -= amount;
     await deudor.save();
 
-    // Incluir el nuevo balance en la respuesta
     res.status(201).json({
-      message: "Cobro registrado con éxito",
+      message: "Cobro registrado con éxito.",
       cobro: nuevoCobro,
       nuevo_balance: deudor.balance,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error al registrar el cobro" });
+    console.error("Error al registrar el cobro:", error);
+    res
+      .status(500)
+      .json([
+        { message: "Error al registrar el cobro." },
+        { valores: req.body },
+      ]);
   }
 };
 
+// Obtener cobros por rango de fechas o cobrador
 exports.obtenerCobros = async (req, res) => {
   try {
-    const { fechaInicio, fechaFin, collectorId } = req.query;
+    const { fechaInicio, fechaFin, collector_id } = req.query;
 
     const where = {};
     if (fechaInicio && fechaFin) {
-      where.paymentDate = {
+      where.payment_date = {
         [Op.between]: [new Date(fechaInicio), new Date(fechaFin)],
       };
     }
-    if (collectorId) {
-      where.collectorId = collectorId;
+    if (collector_id) {
+      where.collector_id = collector_id;
     }
 
     const cobros = await Cobro.findAll({ where });
     res.json(cobros);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error al obtener los cobros" });
+    console.error("Error al obtener los cobros:", error);
+    res.status(500).json({ message: "Error al obtener los cobros." });
   }
 };
 
-// Obtener cobros por cobrador (admin)
+// Obtener cobros por cobrador
 exports.obtenerCobrosPorCobrador = async (req, res) => {
   try {
-    const { collectorId } = req.params;
-    const cobros = await Cobro.findAll({
-      where: { collector_id: collectorId },
-    });
+    const { collector_id } = req.params;
+    const cobros = await Cobro.findAll({ where: { collector_id } });
     res.json(cobros);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error al obtener los cobros" });
+    console.error("Error al obtener los cobros por cobrador:", error);
+    res
+      .status(500)
+      .json({ message: "Error al obtener los cobros por cobrador." });
   }
 };
 
-// Obtener cobros por deudor (usuario)
+// Obtener cobros por deudor
 exports.obtenerCobrosPorDeudor = async (req, res) => {
   try {
-    const { debtorId } = req.params;
-    const cobros = await Cobro.findAll({ where: { debtor_id: debtorId } });
+    const { debtor_id } = req.params;
+    const cobros = await Cobro.findAll({ where: { debtor_id } });
     res.json(cobros);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error al obtener los cobros" });
+    console.error("Error al obtener los cobros por deudor:", error);
+    res
+      .status(500)
+      .json({ message: "Error al obtener los cobros por deudor." });
   }
 };

@@ -52,7 +52,7 @@ const Deudor = db.define(
   },
   {
     tableName: "debtors",
-    timestamps: false, // Desactivar los timestamps si no los necesitas
+    timestamps: true,
   }
 );
 

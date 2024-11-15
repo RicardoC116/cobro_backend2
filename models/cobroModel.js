@@ -44,7 +44,7 @@ const Cobro = db.define(
   },
   {
     tableName: "cobros",
-    timestamps: false, // Desactivar los timestamps si no los necesitas
+    timestamps: true,
   }
 );
 

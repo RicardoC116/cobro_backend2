@@ -27,7 +27,7 @@ const Cobrador = db.define(
   },
   {
     tableName: "collectors",
-    timestamps: false,
+    timestamps: true,
   }
 );
 
