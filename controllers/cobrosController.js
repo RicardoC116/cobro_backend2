@@ -8,8 +8,7 @@ exports.registrarCobro = async (req, res) => {
   try {
     console.log("Datos recibidos:", req.body);
 
-    const { collector_id, debtor_id, amount, payment_date, payment_type } =
-      req.body;
+    const { collector_id, debtor_id, amount, payment_date } = req.body;
 
     // Validar si los IDs de cobrador y deudor existen
     const cobrador = await Cobrador.findByPk(collector_id);
@@ -37,6 +36,10 @@ exports.registrarCobro = async (req, res) => {
         .json({ message: "El monto excede el balance del deudor." });
     }
 
+    // Determinar el tipo de pago
+    const nuevoBalance = deudor.balance - amount;
+    const payment_type = nuevoBalance === 0 ? "liquidacion" : "normal";
+
     // Registrar el cobro
     const nuevoCobro = await Cobro.create({
       collector_id,
@@ -47,7 +50,7 @@ exports.registrarCobro = async (req, res) => {
     });
 
     // Actualizar el balance del deudor
-    deudor.balance -= amount;
+    deudor.balance = nuevoBalance;
     await deudor.save();
 
     res.status(201).json({
@@ -59,10 +62,7 @@ exports.registrarCobro = async (req, res) => {
     console.error("Error al registrar el cobro:", error);
     res
       .status(500)
-      .json([
-        { message: "Error al registrar el cobro." },
-        { valores: req.body },
-      ]);
+      .json({ message: "Error al registrar el cobro.", error: error.message });
   }
 };
 

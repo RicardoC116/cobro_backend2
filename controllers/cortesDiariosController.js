@@ -6,7 +6,7 @@ const Deudor = require("../models/deudorModel");
 const { Op } = require("sequelize");
 
 const registrarCorteDiario = async (req, res) => {
-  const { collector_id } = req.body;
+  const { collector_id, fecha } = req.body;
 
   if (!collector_id) {
     return res
@@ -25,8 +25,15 @@ const registrarCorteDiario = async (req, res) => {
       ? new Date(new Date(ultimoCorte.fecha).getTime() + 24 * 60 * 60 * 1000) // Día siguiente al último corte
       : new Date(new Date().setHours(0, 0, 0, 0)); // Si no hay corte previo, empezar desde hoy
 
-    const fechaFin = new Date(); // Fecha actual
+    // Usar la fecha proporcionada o tomar la fecha actual
+    const fechaFin = fecha ? new Date(fecha) : new Date();
     const fechaFinStr = fechaFin.toISOString().split("T")[0];
+
+    if (fechaFin < fechaInicio) {
+      return res.status(400).json({
+        error: "La fecha del corte no puede ser anterior al último corte.",
+      });
+    }
 
     // Calcular datos para el corte entre `fechaInicio` y `fechaFin`
     const cobros = await Cobro.findAll({
