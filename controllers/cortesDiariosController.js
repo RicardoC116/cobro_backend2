@@ -15,17 +15,15 @@ const registrarCorteDiario = async (req, res) => {
   }
 
   try {
-    // Obtener la fecha del último corte
     const ultimoCorte = await CorteDiario.findOne({
       where: { collector_id },
       order: [["fecha", "DESC"]],
     });
 
     const fechaInicio = ultimoCorte
-      ? new Date(new Date(ultimoCorte.fecha).getTime() + 24 * 60 * 60 * 1000) // Día siguiente al último corte
-      : new Date(new Date().setHours(0, 0, 0, 0)); // Si no hay corte previo, empezar desde hoy
+      ? new Date(new Date(ultimoCorte.fecha).getTime() + 24 * 60 * 60 * 1000)
+      : new Date(new Date().setHours(0, 0, 0, 0));
 
-    // Usar la fecha proporcionada o tomar la fecha actual
     const fechaFin = fecha ? new Date(fecha) : new Date();
     const fechaFinStr = fechaFin.toISOString().split("T")[0];
 
@@ -35,7 +33,6 @@ const registrarCorteDiario = async (req, res) => {
       });
     }
 
-    // Calcular datos para el corte entre `fechaInicio` y `fechaFin`
     const cobros = await Cobro.findAll({
       where: {
         collector_id,
@@ -45,11 +42,16 @@ const registrarCorteDiario = async (req, res) => {
 
     const deudores = await Deudor.findAll({ where: { collector_id } });
 
+    // Obtener deudores únicos que realizaron pagos
+    const deudoresPagaron = [
+      ...new Set(cobros.map((cobro) => cobro.debtor_id)),
+    ];
+
     const cobranza_total = cobros.reduce(
       (sum, cobro) => sum + parseFloat(cobro.amount),
       0
     );
-    const deudores_cobrados = cobros.length;
+    const deudores_cobrados = deudoresPagaron.length;
 
     const liquidaciones = cobros.filter(
       (cobro) => cobro.payment_type === "liquidacion"
@@ -58,9 +60,12 @@ const registrarCorteDiario = async (req, res) => {
       (sum, cobro) => sum + parseFloat(cobro.amount),
       0
     );
-    const deudores_liquidados = liquidaciones.length;
+    const deudores_liquidados = [
+      ...new Set(liquidaciones.map((cobro) => cobro.debtor_id)),
+    ].length;
 
-    const no_pagos_total = deudores.length - cobros.length;
+    // Los deudores que no pagaron son aquellos que no están en `deudoresPagaron`
+    const no_pagos_total = deudores.length - deudoresPagaron.length;
 
     const nuevos_deudores = await Deudor.count({
       where: {
@@ -75,7 +80,6 @@ const registrarCorteDiario = async (req, res) => {
 
     const creditos_total = nuevos_deudores;
 
-    // Crear el corte
     const corte = await CorteDiario.create({
       collector_id,
       fecha: fechaFinStr,
