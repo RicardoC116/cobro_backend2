@@ -38,7 +38,7 @@ const Cobro = db.define(
       allowNull: false,
     },
     payment_type: {
-      type: DataTypes.ENUM("normal", "liquidación", "primer pago"),
+      type: DataTypes.ENUM("normal", "liquidación"),
       allowNull: false,
     },
   },

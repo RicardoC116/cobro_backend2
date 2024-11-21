@@ -38,7 +38,7 @@ exports.registrarCobro = async (req, res) => {
 
     // Determinar el tipo de pago
     const nuevoBalance = deudor.balance - amount;
-    const payment_type = nuevoBalance === 0 ? "liquidacion" : "normal";
+    const payment_type = nuevoBalance === 0 ? "liquidación" : "normal";
 
     // Registrar el cobro
     const nuevoCobro = await Cobro.create({

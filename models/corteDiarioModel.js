@@ -22,6 +22,11 @@ const CorteDiario = db.define("CorteDiario", {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0,
   },
+  primeros_pagos_montos: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0,
+  },
+
   deudores_cobrados: {
     type: DataTypes.INTEGER,
     defaultValue: 0,

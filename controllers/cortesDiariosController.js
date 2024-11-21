@@ -5,7 +5,7 @@ const Cobro = require("../models/cobroModel");
 const Deudor = require("../models/deudorModel");
 const { Op } = require("sequelize");
 
-const registrarCorteDiario = async (req, res) => {
+exports.registrarCorteDiario = async (req, res) => {
   const { collector_id, fecha } = req.body;
 
   if (!collector_id) {
@@ -15,15 +15,16 @@ const registrarCorteDiario = async (req, res) => {
   }
 
   try {
+    // Obtener el último corte
     const ultimoCorte = await CorteDiario.findOne({
       where: { collector_id },
       order: [["fecha", "DESC"]],
     });
 
+    // Definir fechas de inicio y fin del rango
     const fechaInicio = ultimoCorte
       ? new Date(new Date(ultimoCorte.fecha).getTime() + 24 * 60 * 60 * 1000)
       : new Date(new Date().setHours(0, 0, 0, 0));
-
     const fechaFin = fecha ? new Date(fecha) : new Date();
     const fechaFinStr = fechaFin.toISOString().split("T")[0];
 
@@ -33,6 +34,7 @@ const registrarCorteDiario = async (req, res) => {
       });
     }
 
+    // Obtener cobros en el rango de fechas
     const cobros = await Cobro.findAll({
       where: {
         collector_id,
@@ -40,21 +42,22 @@ const registrarCorteDiario = async (req, res) => {
       },
     });
 
+    // Obtener deudores asociados al cobrador
     const deudores = await Deudor.findAll({ where: { collector_id } });
 
-    // Obtener deudores únicos que realizaron pagos
-    const deudoresPagaron = [
-      ...new Set(cobros.map((cobro) => cobro.debtor_id)),
-    ];
-
+    // 1. Calcular cobranza total y deudores cobrados
     const cobranza_total = cobros.reduce(
       (sum, cobro) => sum + parseFloat(cobro.amount),
       0
     );
+    const deudoresPagaron = [
+      ...new Set(cobros.map((cobro) => cobro.debtor_id)),
+    ];
     const deudores_cobrados = deudoresPagaron.length;
 
+    // 2. Calcular liquidaciones
     const liquidaciones = cobros.filter(
-      (cobro) => cobro.payment_type === "liquidacion"
+      (cobro) => cobro.payment_type === "liquidación"
     );
     const liquidaciones_total = liquidaciones.reduce(
       (sum, cobro) => sum + parseFloat(cobro.amount),
@@ -64,9 +67,10 @@ const registrarCorteDiario = async (req, res) => {
       ...new Set(liquidaciones.map((cobro) => cobro.debtor_id)),
     ].length;
 
-    // Los deudores que no pagaron son aquellos que no están en `deudoresPagaron`
+    // 3. Calcular deudores que no pagaron
     const no_pagos_total = deudores.length - deudoresPagaron.length;
 
+    // 4. Calcular nuevos deudores
     const nuevos_deudores = await Deudor.count({
       where: {
         collector_id,
@@ -74,12 +78,20 @@ const registrarCorteDiario = async (req, res) => {
       },
     });
 
-    const primeros_pagos_total = nuevos_deudores
-      ? nuevos_deudores * parseFloat(process.env.MONTO_PRIMER_PAGO || 0)
-      : 0;
+    // 5. Calcular primeros pagos totales y montos
+    const nuevosDeudores = await Deudor.findAll({
+      where: {
+        collector_id,
+        createdAt: { [Op.between]: [fechaInicio, fechaFin] },
+      },
+    });
 
-    const creditos_total = nuevos_deudores;
+    const primeros_pagos_montos = nuevosDeudores.reduce(
+      (sum, deudor) => sum + parseFloat(deudor.first_payment || 0),
+      0
+    );
 
+    // Crear el registro del corte diario
     const corte = await CorteDiario.create({
       collector_id,
       fecha: fechaFinStr,
@@ -88,8 +100,9 @@ const registrarCorteDiario = async (req, res) => {
       liquidaciones_total,
       deudores_liquidados,
       no_pagos_total,
-      creditos_total,
-      primeros_pagos_total,
+      creditos_total: nuevos_deudores,
+      primeros_pagos_total: nuevosDeudores.length,
+      primeros_pagos_montos,
       nuevos_deudores,
     });
 
@@ -102,6 +115,28 @@ const registrarCorteDiario = async (req, res) => {
   }
 };
 
-module.exports = {
-  registrarCorteDiario,
+// Obtener los cortes diarios registrados
+exports.obtenerCortesDiarios = async (req, res) => {
+  try {
+    const cortesDiarios = await CorteDiario.findAll();
+    res.status(200).json({ data: cortesDiarios });
+  } catch (error) {
+    console.error("Error al obtener cortes Diarios:", error);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+};
+
+// Eliminar un corte
+exports.deleteCorteDiario = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const corteDiario = await CorteDiario.findByPk(id);
+    if (!corteDiario) {
+      return res.status(404).json({ error: "corte diario no encontrado" });
+    }
+    await corteDiario.destroy();
+    res.json({ message: "Corte diario eliminado exitosamente" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };

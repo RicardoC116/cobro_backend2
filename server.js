@@ -6,7 +6,7 @@ const port = 3000;
 const cobradoresRoutes = require("./routes/cobradoresRoutes");
 const deudoresRoutes = require("./routes/deudoresRoutes");
 const cobrosRoutes = require("./routes/cobrosRoutes");
-const cortesRoutes = require("./routes/cortesdiariosRoutes");
+const cortesRoutes = require("./routes/cortesRoutes");
 const db = require("./db");
 
 require("dotenv").config();
@@ -23,7 +23,14 @@ db.authenticate()
     console.log("Conexión exitosa a la base de datos");
 
     // Sincronizar la base de datos (crear/actualizar tablas)
-    return db.sync({ alter: true });
+    return db
+      .sync({ alter: true })
+      .then(() => {
+        console.log("Base de datos sincronizada correctamente.");
+      })
+      .catch((error) => {
+        console.error("Error al sincronizar la base de datos:", error);
+      });
   })
   .then(() => {
     console.log("Base de datos sincronizada");
@@ -40,6 +47,7 @@ db.authenticate()
     // Rutas para Cortes Diarios
     app.use("/api/cortes", cortesRoutes);
     // Iniciar el servidor solo si la conexión a la BD es exitosa
+
     app.listen(port, () => {
       console.log(`Servidor corriendo en http://localhost:${port}`);
     });
