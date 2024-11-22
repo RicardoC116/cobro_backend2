@@ -14,14 +14,22 @@ const CorteDiario = db.define("CorteDiario", {
     },
     onDelete: "CASCADE",
   },
+
   fecha: {
     type: DataTypes.DATEONLY,
     allowNull: false,
   },
+
+  deudores_totales: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+
   cobranza_total: {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0,
   },
+
   primeros_pagos_montos: {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0,
@@ -31,26 +39,32 @@ const CorteDiario = db.define("CorteDiario", {
     type: DataTypes.INTEGER,
     defaultValue: 0,
   },
+
   liquidaciones_total: {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0,
   },
+
   deudores_liquidados: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
   },
+
   no_pagos_total: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
   },
+
   creditos_total: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
   },
+
   primeros_pagos_total: {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0,
   },
+
   nuevos_deudores: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
