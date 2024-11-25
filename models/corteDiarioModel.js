@@ -60,6 +60,11 @@ const CorteDiario = db.define("CorteDiario", {
     defaultValue: 0,
   },
 
+  creditos_total_monto: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0,
+  },
+
   primeros_pagos_total: {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0,

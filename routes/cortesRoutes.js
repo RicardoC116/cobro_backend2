@@ -6,8 +6,8 @@ const {
 } = require("../controllers/cortesDiariosController");
 
 const {
-  obtenerCortesSemanales,
   crearCorteSemanal,
+  obtenerCortesSemanales,
   deleteCorteSemanal,
 } = require("../controllers/cortesSemanalesController");
 
@@ -18,7 +18,7 @@ router.get("/diario", obtenerCortesDiarios);
 router.delete("/diario/:id", deleteCorteDiario);
 
 router.post("/semanal", crearCorteSemanal);
-router.post("/semanal", obtenerCortesSemanales);
+router.get("/semanal", obtenerCortesSemanales);
 router.delete("/semanal/:id", deleteCorteSemanal);
 
 module.exports = router;

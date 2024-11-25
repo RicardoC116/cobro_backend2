@@ -2,6 +2,10 @@ const { DataTypes } = require("sequelize");
 const db = require("../db");
 
 const CorteSemanal = db.define("CorteSemanal", {
+  collector_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false, // o true si no es obligatorio
+  },
   fecha_inicio: {
     type: DataTypes.DATE,
     allowNull: false,
@@ -18,15 +22,19 @@ const CorteSemanal = db.define("CorteSemanal", {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0.0,
   },
-  creditos_totales: {
+  creditos_total: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
   },
-  montos_creditos: {
+  creditos_total_monto: {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0.0,
   },
-  primeros_pagos: {
+  primeros_pagos_total: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.0,
+  },
+  primeros_pagos_Monto: {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0.0,
   },
@@ -46,7 +54,17 @@ const CorteSemanal = db.define("CorteSemanal", {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0.0,
   },
-  total_corte: {
+  total_ingreso: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.0,
+  },
+  total_gasto: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.0,
+  },
+
+  saldo_final: {
+    // Cambia de "total_corte" a "saldo_final" para coincidir
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0.0,
   },

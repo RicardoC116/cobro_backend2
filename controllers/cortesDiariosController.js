@@ -70,6 +70,12 @@ exports.registrarCorteDiario = async (req, res) => {
       0
     );
 
+    // El monto de los creditos (Esto fui lo que hice apenas )
+    const creditos_total_monto = nuevosDeudores.reduce(
+      (sum, deudor) => sum + parseFloat(deudor.amount || 0),
+      0
+    );
+
     // IDs de deudores con primeros pagos
     const deudoresPrimerosPagos = nuevosDeudores
       .filter((deudor) => deudor.first_payment > 0)
@@ -117,6 +123,7 @@ exports.registrarCorteDiario = async (req, res) => {
       deudores_liquidados: deudores_liquidados.length,
       no_pagos_total,
       creditos_total: nuevos_deudores,
+      creditos_total_monto,
       primeros_pagos_total: nuevosDeudores.length,
       primeros_pagos_montos,
       nuevos_deudores,

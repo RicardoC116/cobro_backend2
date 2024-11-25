@@ -2,6 +2,7 @@ const CorteSemanal = require("../models/corteSemanalModel");
 const CorteDiario = require("../models/corteDiarioModel");
 const { Op } = require("sequelize");
 
+// Crear corte semanal
 exports.crearCorteSemanal = async (req, res) => {
   const {
     collector_id,
@@ -19,66 +20,68 @@ exports.crearCorteSemanal = async (req, res) => {
   }
 
   try {
-    // Obtener cortes diarios en el rango de fechas
+    if (isNaN(Date.parse(fecha_inicio)) || isNaN(Date.parse(fecha_fin))) {
+      return res.status(400).json({ error: "Fechas inválidas." });
+    }
+
+    const corteExistente = await CorteSemanal.findOne({
+      where: { collector_id, fecha_inicio, fecha_fin },
+    });
+
+    if (corteExistente) {
+      return res.status(409).json({ error: "Corte semanal ya existe." });
+    }
+
     const cortesDiarios = await CorteDiario.findAll({
       where: {
         collector_id,
-        fecha: {
-          [Op.between]: [fecha_inicio, fecha_fin],
-        },
+        fecha: { [Op.between]: [fecha_inicio, fecha_fin] },
       },
     });
 
     if (cortesDiarios.length === 0) {
-      return res.status(404).json({
-        error: "No hay cortes diarios registrados en este rango de fechas.",
-      });
+      return res
+        .status(404)
+        .json({ error: "No hay cortes diarios en este rango." });
     }
 
-    // Sumar los datos necesarios
-    const cobranzaTotal = cortesDiarios.reduce(
-      (acc, corte) => acc + parseFloat(corte.cobranza_total),
-      0
-    );
-    const deudoresCobrados = cortesDiarios.reduce(
-      (acc, corte) => acc + corte.deudores_cobrados,
-      0
-    );
-    const creditosTotal = cortesDiarios.reduce(
-      (acc, corte) => acc + parseFloat(corte.creditos_total),
-      0
-    );
-    const nuevosDeudores = cortesDiarios.reduce(
-      (acc, corte) => acc + corte.nuevos_deudores,
-      0
-    );
-    const primerosPagosTotal = cortesDiarios.reduce(
-      (acc, corte) => acc + parseFloat(corte.primeros_pagos_total),
-      0
-    );
-    const liquidacionesTotal = cortesDiarios.reduce(
-      (acc, corte) => acc + parseFloat(corte.liquidaciones_total),
-      0
-    );
-    const deudoresLiquidados = cortesDiarios.reduce(
-      (acc, corte) => acc + corte.deudores_liquidados,
-      0
-    );
-    const noPagosTotal = cortesDiarios.reduce(
-      (acc, corte) => acc + corte.no_pagos_total,
-      0
-    );
+    const sumarTotales = (cortes, campo) =>
+      cortes.reduce((acc, corte) => acc + parseFloat(corte[campo] || 0), 0);
 
-    // Cálculos de ingresos y gastos
+    const cobranzaTotal = sumarTotales(cortesDiarios, "cobranza_total");
+    const deudoresCobrados = sumarTotales(cortesDiarios, "deudores_cobrados");
+    const creditosTotal = sumarTotales(cortesDiarios, "creditos_total");
+    const creditosTotalMonto = sumarTotales(
+      cortesDiarios,
+      "creditos_total_monto"
+    );
+    const nuevosDeudores = sumarTotales(cortesDiarios, "nuevos_deudores");
+    const primerosPagosTotal = sumarTotales(
+      cortesDiarios,
+      "primeros_pagos_total"
+    );
+    const primerosPagosMonto = sumarTotales(
+      cortesDiarios,
+      "primeros_pagos_montos"
+    );
+    const liquidacionesTotal = sumarTotales(
+      cortesDiarios,
+      "liquidaciones_total"
+    );
+    const deudoresLiquidados = sumarTotales(
+      cortesDiarios,
+      "deudores_liquidados"
+    );
+    const noPagosTotal = sumarTotales(cortesDiarios, "no_pagos_total");
+
     const totalIngresos =
-      cobranzaTotal + primerosPagosTotal + liquidacionesTotal + creditosTotal;
+      cobranzaTotal + primerosPagosMonto + creditosTotalMonto;
     const totalGastos =
       parseFloat(comision_cobro) +
       parseFloat(comision_ventas) +
       parseFloat(gastos);
     const saldoFinal = totalIngresos - totalGastos;
 
-    // Crear el nuevo corte semanal
     const nuevoCorteSemanal = await CorteSemanal.create({
       collector_id,
       fecha_inicio,
@@ -89,11 +92,15 @@ exports.crearCorteSemanal = async (req, res) => {
       deudores_liquidados: deudoresLiquidados,
       no_pagos_total: noPagosTotal,
       creditos_total: creditosTotal,
+      creditos_total_monto: creditosTotalMonto,
       primeros_pagos_total: primerosPagosTotal,
+      primeros_pagos_Monto: primerosPagosMonto,
       nuevos_deudores: nuevosDeudores,
       comision_cobro,
       comision_ventas,
       gastos,
+      total_ingreso: totalIngresos,
+      total_gasto: totalGastos,
       saldo_final: saldoFinal,
     });
 
@@ -102,33 +109,36 @@ exports.crearCorteSemanal = async (req, res) => {
       data: nuevoCorteSemanal,
     });
   } catch (error) {
-    console.error("Error al crear el corte semanal:", error);
+    console.error("Error al crear el corte semanal:", error.message);
     res.status(500).json({ error: "Error interno del servidor." });
   }
 };
 
-// Obtener los cortes semanales registrados
+// Obtener cortes semanales
 exports.obtenerCortesSemanales = async (req, res) => {
   try {
     const cortesSemanales = await CorteSemanal.findAll();
-    res.status(200).json({ data: cortesSemanales });
+    res.json(cortesSemanales);
   } catch (error) {
-    console.error("Error al obtener cortes semanales:", error);
+    console.error("Error al obtener los cortes semanales:", error.message);
     res.status(500).json({ error: "Error interno del servidor." });
   }
 };
 
-// Eliminar un corte semanal
+// Eliminar corte semanal
 exports.deleteCorteSemanal = async (req, res) => {
   const { id } = req.params;
+
   try {
-    const cortesSemanales = await CorteSemanal.findByPk(id);
-    if (!cortesSemanales) {
-      return res.status(404).json({ error: "Cobrador no encontrado" });
+    const filasEliminadas = await CorteSemanal.destroy({ where: { id } });
+
+    if (!filasEliminadas) {
+      return res.status(404).json({ error: "Corte no encontrado." });
     }
-    await cortesSemanales.destroy();
-    res.json({ message: "Cobrador eliminado" });
+
+    res.status(200).json({ message: "Corte eliminado correctamente." });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error al eliminar el corte semanal:", error.message);
+    res.status(500).json({ error: "Error interno del servidor." });
   }
 };
