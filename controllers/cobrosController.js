@@ -92,8 +92,10 @@ exports.obtenerCobros = async (req, res) => {
 // Obtener cobros por cobrador
 exports.obtenerCobrosPorCobrador = async (req, res) => {
   try {
-    const { collector_id } = req.params;
-    const cobros = await Cobro.findAll({ where: { collector_id } });
+    const { collectorId } = req.params;
+    const cobros = await Cobro.findAll({
+      where: { collector_id: collectorId },
+    });
     res.json(cobros);
   } catch (error) {
     console.error("Error al obtener los cobros por cobrador:", error);
@@ -106,8 +108,8 @@ exports.obtenerCobrosPorCobrador = async (req, res) => {
 // Obtener cobros por deudor
 exports.obtenerCobrosPorDeudor = async (req, res) => {
   try {
-    const { debtor_id } = req.params;
-    const cobros = await Cobro.findAll({ where: { debtor_id } });
+    const { debtorId } = req.params;
+    const cobros = await Cobro.findAll({ where: { debtor_id: debtorId } });
     res.json(cobros);
   } catch (error) {
     console.error("Error al obtener los cobros por deudor:", error);

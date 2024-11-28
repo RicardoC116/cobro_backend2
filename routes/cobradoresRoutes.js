@@ -1,3 +1,5 @@
+// cobradorRoutes
+
 const express = require("express");
 const router = express.Router();
 const cobradoresController = require("../controllers/cobradoresControllers");
@@ -15,10 +17,3 @@ router.post("/login", cobradoresController.loginCobrador);
 router.get("/verify-token", cobradoresController.verifyToken); // Agregar esta línea
 
 module.exports = router;
-
-// {
-//     "name": "Piña",
-//     "phone_number": "117",
-//     "password": "Hola03"
-//   }
-  
