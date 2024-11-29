@@ -15,7 +15,7 @@ router.post("/registrar", registrarCobro);
 // Ruta para obtener todos los cobros
 router.get("/", obtenerCobros);
 
-// Ruta para obtener cobros por cobrador (admin)
+// Ruta para obtener cobros por cobrador (admin) 
 router.get("/cobrador/:collectorId", obtenerCobrosPorCobrador);
 
 // Ruta para obtener cobros por deudor (usuario)

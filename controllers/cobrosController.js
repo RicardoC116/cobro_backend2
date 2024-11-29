@@ -2,6 +2,7 @@
 const Cobro = require("../models/cobroModel");
 const Cobrador = require("../models/cobradorModel");
 const Deudor = require("../models/deudorModel");
+
 const { Op } = require("sequelize");
 
 exports.registrarCobro = async (req, res) => {
@@ -117,4 +118,35 @@ exports.obtenerCobrosPorDeudor = async (req, res) => {
       .status(500)
       .json({ message: "Error al obtener los cobros por deudor." });
   }
+};
+
+exports.obtenerCobrosEnRango = async (collector_id, fechaInicio, fechaFin) => {
+  return await Cobro.findAll({
+    where: {
+      collector_id,
+      createdAt: { [Op.between]: [fechaInicio, fechaFin] },
+    },
+  });
+};
+
+exports.calcularLiquidaciones = (cobros) => {
+  const liquidaciones = cobros.filter(
+    (cobro) => cobro.payment_type === "liquidación"
+  );
+  const montoTotal = liquidaciones.reduce(
+    (sum, cobro) => sum + parseFloat(cobro.amount),
+    0
+  );
+
+  return {
+    total: montoTotal,
+    deudoresLiquidados: liquidaciones.map((cobro) => cobro.debtor_id),
+  };
+};
+
+exports.calcularCobranzaTotal = (cobros, primerosPagosMontos) => {
+  return (
+    cobros.reduce((sum, cobro) => sum + parseFloat(cobro.amount), 0) +
+    primerosPagosMontos
+  );
 };

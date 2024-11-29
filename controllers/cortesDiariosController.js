@@ -1,9 +1,8 @@
-// corteDiariosController
-
+// CortesDiariosController
 const CorteDiario = require("../models/corteDiarioModel");
-const Cobro = require("../models/cobroModel");
-const Deudor = require("../models/deudorModel");
-const { Op } = require("sequelize");
+const deudoresController = require("./deudoresControllers");
+const cobrosController = require("./cobrosController");
+const PreCorte = require("../models/preCorteModel");
 
 exports.registrarCorteDiario = async (req, res) => {
   const { collector_id, fecha } = req.body;
@@ -24,110 +23,70 @@ exports.registrarCorteDiario = async (req, res) => {
       ? new Date(new Date(ultimoCorte.fecha).getTime() + 24 * 60 * 60 * 1000)
       : new Date(new Date().setHours(0, 0, 0, 0));
     const fechaFin = fecha ? new Date(fecha) : new Date();
-    const fechaFinStr = fechaFin.toISOString().split("T")[0];
 
-    if (fechaFin < fechaInicio) {
-      return res.status(400).json({
-        error: "La fecha del corte no puede ser anterior al último corte.",
-      });
-    }
-
-    // Obtener deudores asociados al cobrador y que tengan balance > 0
-    const deudores = await Deudor.findAll({
-      where: {
-        collector_id,
-        balance: { [Op.gt]: 0 }, // Excluir deudores liquidados
-      },
-    });
-
-    // Obtener deudores asociados al cobrador con balance pendiente
-    const deudoresActivos = await Deudor.findAll({
-      where: {
-        collector_id,
-        balance: { [Op.gt]: 0 },
-      },
-    });
-    const deudores_totales = deudoresActivos.length;
-
-    // Obtener cobros en el rango de fechas
-    const cobros = await Cobro.findAll({
-      where: {
-        collector_id,
-        createdAt: { [Op.between]: [fechaInicio, fechaFin] },
-      },
-    });
-
-    // Obtener nuevos deudores en el rango y sus primeros pagos
-    const nuevosDeudores = await Deudor.findAll({
-      where: {
-        collector_id,
-        createdAt: { [Op.between]: [fechaInicio, fechaFin] },
-      },
-    });
-
-    const primeros_pagos_montos = nuevosDeudores.reduce(
-      (sum, deudor) => sum + parseFloat(deudor.first_payment || 0),
-      0
+    // 1. Obtener deudores activos
+    const deudoresActivos = await deudoresController.obtenerDeudoresActivos(
+      collector_id
     );
 
-    // El monto de los creditos (Esto fui lo que hice apenas )
-    const creditos_total_monto = nuevosDeudores.reduce(
-      (sum, deudor) => sum + parseFloat(deudor.amount || 0),
-      0
+    // 2. Obtener nuevos deudores y primeros pagos
+    const nuevosDeudores = await deudoresController.obtenerNuevosDeudores(
+      collector_id,
+      fechaInicio,
+      fechaFin
     );
+    const primerosPagosMontos =
+      deudoresController.calcularPrimerosPagos(nuevosDeudores);
+    const creditosTotales =
+      deudoresController.calcularCreditosTotales(nuevosDeudores);
 
-    // IDs de deudores con primeros pagos
-    const deudoresPrimerosPagos = nuevosDeudores
-      .filter((deudor) => deudor.first_payment > 0)
-      .map((deudor) => deudor.id);
+    // 3. Obtener cobros en el rango y calcular estadísticas
+    const cobros = await cobrosController.obtenerCobrosEnRango(
+      collector_id,
+      fechaInicio,
+      fechaFin
+    );
+    const cobranzaTotal = cobrosController.calcularCobranzaTotal(
+      cobros,
+      primerosPagosMontos
+    );
+    const liquidaciones = cobrosController.calcularLiquidaciones(cobros);
 
-    // Calcular cobranza total (incluyendo primeros pagos)
-    const cobranza_total =
-      cobros.reduce((sum, cobro) => sum + parseFloat(cobro.amount), 0) +
-      primeros_pagos_montos;
-
-    // Deudores que pagaron (cobros regulares + primeros pagos)
+    // 4. Calcular deudores cobrados y no pagaron
     const deudoresPagaron = [
       ...new Set([
         ...cobros.map((cobro) => cobro.debtor_id),
-        ...deudoresPrimerosPagos,
+        ...nuevosDeudores.map((deudor) => deudor.id),
       ]),
     ];
-    const deudores_cobrados = deudores.filter((deudor) =>
-      deudoresPagaron.includes(deudor.id)
-    ).length;
-
-    // Calcular liquidaciones
-    const liquidaciones = cobros.filter(
-      (cobro) => cobro.payment_type === "liquidación"
+    const noPagosTotal = deudoresController.obtenerDeudoresNoPagaron(
+      deudoresActivos,
+      deudoresPagaron
     );
-    const liquidaciones_total = liquidaciones.reduce(
-      (sum, cobro) => sum + parseFloat(cobro.amount),
-      0
-    );
-    const deudores_liquidados = liquidaciones.map((cobro) => cobro.debtor_id);
 
-    // Deudores que no pagaron
-    const no_pagos_total = deudores.length - deudores_cobrados;
-
-    // Nuevos deudores
-    const nuevos_deudores = nuevosDeudores.length;
-
-    // Crear el registro del corte diario
+    // 5. Crear el registro del corte diario
     const corte = await CorteDiario.create({
       collector_id,
-      fecha: fechaFinStr,
-      cobranza_total,
-      deudores_cobrados,
-      liquidaciones_total,
-      deudores_liquidados: deudores_liquidados.length,
-      no_pagos_total,
-      creditos_total: nuevos_deudores,
-      creditos_total_monto,
+      fecha: fechaFin.toISOString().split("T")[0],
+      cobranza_total: cobranzaTotal,
+      deudores_cobrados: deudoresPagaron.length,
+      liquidaciones_total: liquidaciones.total,
+      deudores_liquidados: liquidaciones.deudoresLiquidados.length,
+      no_pagos_total: noPagosTotal,
+      creditos_total: nuevosDeudores.length,
+      creditos_total_monto: creditosTotales,
       primeros_pagos_total: nuevosDeudores.length,
-      primeros_pagos_montos,
-      nuevos_deudores,
-      deudores_totales,
+      primeros_pagos_montos: primerosPagosMontos,
+      nuevos_deudores: nuevosDeudores.length,
+      deudores_totales: deudoresActivos.length,
+    });
+
+    // Eliminar el pre-corte
+    await PreCorte.destroy({
+      where: {
+        collector_id,
+        fecha: fechaFin.toISOString().split("T")[0],
+      },
     });
 
     res

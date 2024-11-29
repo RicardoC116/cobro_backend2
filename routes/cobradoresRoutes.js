@@ -14,6 +14,6 @@ router.delete("/:id", cobradoresController.deleteCobrador);
 router.post("/login", cobradoresController.loginCobrador);
 
 // Nueva ruta para verificar el token
-router.get("/verify-token", cobradoresController.verifyToken); // Agregar esta línea
+router.get("/verify-token", cobradoresController.verifyToken);
 
 module.exports = router;

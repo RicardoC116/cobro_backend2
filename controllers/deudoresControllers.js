@@ -1,6 +1,7 @@
 // controllers/deudoresController.js
 const Deudor = require("../models/deudorModel");
 const Cobrador = require("../models/cobradorModel");
+const { Op } = require("sequelize");
 
 // Obtener todos los deudores
 exports.getAllDeudores = async (req, res) => {
@@ -124,4 +125,40 @@ exports.getDeudorById = async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+};
+
+exports.obtenerDeudoresActivos = async (collector_id) => {
+  return await Deudor.findAll({
+    where: {
+      collector_id,
+      balance: { [Op.gt]: 0 }, 
+    },
+  });
+};
+
+exports.obtenerNuevosDeudores = async (collector_id, fechaInicio, fechaFin) => {
+  return await Deudor.findAll({
+    where: {
+      collector_id,
+      createdAt: { [Op.between]: [fechaInicio, fechaFin] },
+    },
+  });
+};
+
+exports.calcularPrimerosPagos = (nuevosDeudores) => {
+  return nuevosDeudores.reduce(
+    (sum, deudor) => sum + parseFloat(deudor.first_payment || 0),
+    0
+  );
+};
+
+exports.calcularCreditosTotales = (nuevosDeudores) => {
+  return nuevosDeudores.reduce(
+    (sum, deudor) => sum + parseFloat(deudor.amount || 0),
+    0
+  );
+};
+
+exports.obtenerDeudoresNoPagaron = (deudoresTotales, deudoresPagaron) => {
+  return Math.max(0, deudoresTotales.length - deudoresPagaron.length);
 };

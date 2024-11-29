@@ -1,10 +1,10 @@
 const bcrypt = require("bcrypt");
-const Cobrador = require("./models/cobradorModel"); // Corrige aquí
+const Cobrador = require("./models/cobradorModel");
 
 const encryptPasswords = async () => {
   try {
     // Obtener todos los cobradores de la base de datos
-    const cobradores = await Cobrador.findAll(); // Esto ahora debería funcionar
+    const cobradores = await Cobrador.findAll();
 
     for (const cobrador of cobradores) {
       // Encriptar la contraseña
@@ -12,7 +12,6 @@ const encryptPasswords = async () => {
 
       // Actualizar la contraseña en la base de datos
       await Cobrador.update(
-        // Cambié Collector a Cobrador
         { password: hashedPassword },
         { where: { id: cobrador.id } }
       );
@@ -27,5 +26,4 @@ const encryptPasswords = async () => {
   }
 };
 
-// Ejecutar el script
 encryptPasswords();

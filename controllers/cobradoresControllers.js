@@ -19,7 +19,7 @@ exports.getAllCobradores = async (req, res) => {
 exports.createCobrador = async (req, res) => {
   const { name, phone_number, password } = req.body;
   try {
-    // Encriptar la contraseña antes de guardar
+    // Encriptar la contraseña 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const cobrador = await Cobrador.create({
@@ -79,14 +79,14 @@ exports.loginCobrador = async (req, res) => {
       return res.status(404).json({ error: "Cobrador no encontrado" });
     }
 
-    // Verificar la contraseña
+    // Para verificar la contraseña
     const isPasswordValid = await bcrypt.compare(password, cobrador.password);
 
     if (!isPasswordValid) {
       return res.status(401).json({ error: "Contraseña incorrecta" });
     }
 
-    // Crear un token de autenticación con id y nombre
+    // Se crea un token de autenticación con id y nombre
     const token = jwt.sign(
       { id: cobrador.id, name: cobrador.name },
       process.env.JWT_SECRET,
@@ -99,9 +99,9 @@ exports.loginCobrador = async (req, res) => {
   }
 };
 
-// Nueva función para verificar el token
+// verificar el token
 exports.verifyToken = (req, res) => {
-  const token = req.headers.authorization?.split(" ")[1]; // Obtener el token del header
+  const token = req.headers.authorization?.split(" ")[1]; 
 
   if (!token) {
     return res.status(401).json({ message: "Token no proporcionado" });
@@ -111,7 +111,6 @@ exports.verifyToken = (req, res) => {
     if (err) {
       return res.status(401).json({ message: "Token inválido" });
     }
-    // Aquí se deben incluir tanto el id como el nombre si existen
     res.status(200).json({
       message: "Token válido",
       collector_id: decoded.id,

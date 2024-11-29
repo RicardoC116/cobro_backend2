@@ -1,6 +1,6 @@
 // server.js
 const express = require("express");
-const cors = require("cors"); // Importar el paquete cors
+const cors = require("cors");
 const app = express();
 const port = 3000;
 const cobradoresRoutes = require("./routes/cobradoresRoutes");
@@ -22,7 +22,7 @@ db.authenticate()
   .then(() => {
     console.log("Conexión exitosa a la base de datos");
 
-    // Sincronizar la base de datos (crear/actualizar tablas)
+    // Sincronizar la base de datos
     return db
       .sync({ alter: false })
       .then(() => {
@@ -46,8 +46,8 @@ db.authenticate()
 
     // Rutas para Cortes Diarios
     app.use("/api/cortes", cortesRoutes);
-    // Iniciar el servidor solo si la conexión a la BD es exitosa
 
+    // Iniciar el servidor solo si la conexión a la BD es exitosa
     app.listen(port, () => {
       console.log(`Servidor corriendo en http://localhost:${port}`);
     });
