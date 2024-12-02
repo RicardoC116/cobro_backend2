@@ -109,6 +109,22 @@ exports.obtenerCortesDiarios = async (req, res) => {
   }
 };
 
+// Obtener cobros por cobrador
+exports.obtenerCortesPorCobrador = async (req, res) => {
+  try {
+    const { id } = req.params; // Ajustar el nombre del parámetro
+    const Corte = await CorteDiario.findAll({
+      where: { collector_id: id }, // Usar "id" correctamente aquí
+    });
+    res.json(Corte);
+  } catch (error) {
+    console.error("Error al obtener los cortes por cobrador:", error);
+    res
+      .status(500)
+      .json({ message: "Error al obtener los cobros por cobrador." });
+  }
+};
+
 // Eliminar un corte
 exports.deleteCorteDiario = async (req, res) => {
   const { id } = req.params;

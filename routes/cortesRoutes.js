@@ -7,6 +7,7 @@ const {
   registrarCorteDiario,
   obtenerCortesDiarios,
   deleteCorteDiario,
+  obtenerCortesPorCobrador,
 } = require("../controllers/cortesDiariosController");
 
 // CorteSemanal
@@ -20,6 +21,7 @@ const router = express.Router();
 
 router.post("/diario", registrarCorteDiario);
 router.get("/diario", obtenerCortesDiarios);
+router.get("/diario/:id", obtenerCortesPorCobrador);
 router.delete("/diario/:id", deleteCorteDiario);
 
 // Semanales
