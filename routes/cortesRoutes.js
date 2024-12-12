@@ -15,6 +15,7 @@ const {
   crearCorteSemanal,
   obtenerCortesSemanales,
   deleteCorteSemanal,
+  obtenerCortesSemanalPorCobrador,
 } = require("../controllers/cortesSemanalesController");
 
 const router = express.Router();
@@ -27,6 +28,7 @@ router.delete("/diario/:id", deleteCorteDiario);
 // Semanales
 router.post("/semanal", crearCorteSemanal);
 router.get("/semanal", obtenerCortesSemanales);
+router.get("/semanal/:id", obtenerCortesSemanalPorCobrador);
 router.delete("/semanal/:id", deleteCorteSemanal);
 
 module.exports = router;

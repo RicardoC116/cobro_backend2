@@ -144,9 +144,6 @@ exports.calcularLiquidaciones = (cobros) => {
   };
 };
 
-exports.calcularCobranzaTotal = (cobros, primerosPagosMontos) => {
-  return (
-    cobros.reduce((sum, cobro) => sum + parseFloat(cobro.amount), 0) +
-    primerosPagosMontos
-  );
+exports.calcularCobranzaTotal = (cobros) => {
+  return cobros.reduce((sum, cobro) => sum + parseFloat(cobro.amount), 0);
 };

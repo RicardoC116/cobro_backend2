@@ -26,6 +26,10 @@ const CorteSemanal = db.define("CorteSemanal", {
     type: DataTypes.INTEGER,
     defaultValue: 0,
   },
+  liquidaciones_total: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.0,
+  },
   creditos_total_monto: {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0.0,

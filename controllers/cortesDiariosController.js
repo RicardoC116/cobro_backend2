@@ -2,15 +2,14 @@
 const CorteDiario = require("../models/corteDiarioModel");
 const deudoresController = require("./deudoresControllers");
 const cobrosController = require("./cobrosController");
-const PreCorte = require("../models/preCorteModel");
+const { Op } = require("sequelize");
+
 
 exports.registrarCorteDiario = async (req, res) => {
   const { collector_id, fecha } = req.body;
 
   if (!collector_id) {
-    return res
-      .status(400)
-      .json({ error: "El ID del cobrador es obligatorio." });
+    return res.status(400).json({ error: "El ID del cobrador es obligatorio." });
   }
 
   try {
@@ -24,12 +23,17 @@ exports.registrarCorteDiario = async (req, res) => {
       : new Date(new Date().setHours(0, 0, 0, 0));
     const fechaFin = fecha ? new Date(fecha) : new Date();
 
-    // 1. Obtener deudores activos
-    const deudoresActivos = await deudoresController.obtenerDeudoresActivos(
-      collector_id
+    // 1. Obtener cobros en el rango
+    const cobros = await cobrosController.obtenerCobrosEnRango(
+      collector_id,
+      fechaInicio,
+      fechaFin
     );
 
-    // 2. Obtener nuevos deudores y primeros pagos
+    // 2. Extraer deudores que pagaron
+    const deudoresCobros = Array.from(new Set(cobros.map(c => c.debtor_id)));
+
+    // 3. Obtener nuevos deudores (primeros pagos)
     const nuevosDeudores = await deudoresController.obtenerNuevosDeudores(
       collector_id,
       fechaInicio,
@@ -37,34 +41,26 @@ exports.registrarCorteDiario = async (req, res) => {
     );
     const primerosPagosMontos =
       deudoresController.calcularPrimerosPagos(nuevosDeudores);
-    const creditosTotales =
-      deudoresController.calcularCreditosTotales(nuevosDeudores);
+    const deudoresPrimerosPagos = nuevosDeudores.map(d => d.id);
 
-    // 3. Obtener cobros en el rango y calcular estadísticas
-    const cobros = await cobrosController.obtenerCobrosEnRango(
-      collector_id,
-      fechaInicio,
-      fechaFin
+    // 4. Unificar ambas listas de deudores que han pagado
+    const deudoresPagaron = Array.from(
+      new Set([...deudoresCobros, ...deudoresPrimerosPagos])
     );
-    const cobranzaTotal = cobrosController.calcularCobranzaTotal(
-      cobros,
-      primerosPagosMontos
-    );
+
+    // 5. Calcular estadísticas
+    const cobranzaTotal = cobrosController.calcularCobranzaTotal(cobros);
     const liquidaciones = cobrosController.calcularLiquidaciones(cobros);
 
-    // 4. Calcular deudores cobrados y no pagaron
-    const deudoresPagaron = [
-      ...new Set([
-        ...cobros.map((cobro) => cobro.debtor_id),
-        ...nuevosDeudores.map((deudor) => deudor.id),
-      ]),
-    ];
+    const deudoresActivos = await deudoresController.obtenerDeudoresActivos(
+      collector_id
+    );
     const noPagosTotal = deudoresController.obtenerDeudoresNoPagaron(
       deudoresActivos,
       deudoresPagaron
     );
 
-    // 5. Crear el registro del corte diario
+    // 6. Registrar el corte diario
     const corte = await CorteDiario.create({
       collector_id,
       fecha: fechaFin.toISOString().split("T")[0],
@@ -74,19 +70,13 @@ exports.registrarCorteDiario = async (req, res) => {
       deudores_liquidados: liquidaciones.deudoresLiquidados.length,
       no_pagos_total: noPagosTotal,
       creditos_total: nuevosDeudores.length,
-      creditos_total_monto: creditosTotales,
-      primeros_pagos_total: nuevosDeudores.length,
+      creditos_total_monto: deudoresController.calcularCreditosTotales(
+        nuevosDeudores
+      ),
+      primeros_pagos_total: deudoresPrimerosPagos.length,
       primeros_pagos_montos: primerosPagosMontos,
       nuevos_deudores: nuevosDeudores.length,
       deudores_totales: deudoresActivos.length,
-    });
-
-    // Eliminar el pre-corte
-    await PreCorte.destroy({
-      where: {
-        collector_id,
-        fecha: fechaFin.toISOString().split("T")[0],
-      },
     });
 
     res
@@ -97,6 +87,7 @@ exports.registrarCorteDiario = async (req, res) => {
     res.status(500).json({ error: "Error al registrar el corte diario." });
   }
 };
+
 
 // Obtener los cortes diarios registrados
 exports.obtenerCortesDiarios = async (req, res) => {

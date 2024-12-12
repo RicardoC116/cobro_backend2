@@ -1,3 +1,4 @@
+// controllers/cortesSemanalesControllers
 const CorteSemanal = require("../models/corteSemanalModel");
 const CorteDiario = require("../models/corteDiarioModel");
 const { Op } = require("sequelize");
@@ -20,16 +21,43 @@ exports.crearCorteSemanal = async (req, res) => {
   }
 
   try {
-    if (isNaN(Date.parse(fecha_inicio)) || isNaN(Date.parse(fecha_fin))) {
+    const inicio = new Date(fecha_inicio);
+    const fin = new Date(fecha_fin);
+
+    if (isNaN(inicio) || isNaN(fin)) {
       return res.status(400).json({ error: "Fechas inválidas." });
     }
 
-    const corteExistente = await CorteSemanal.findOne({
-      where: { collector_id, fecha_inicio, fecha_fin },
+    if (inicio > fin) {
+      return res.status(400).json({
+        error: "La fecha de inicio debe ser anterior a la fecha de fin.",
+      });
+    }
+
+    const rangoSolapado = await CorteSemanal.findOne({
+      where: {
+        collector_id,
+        [Op.or]: [
+          { fecha_inicio: { [Op.between]: [fecha_inicio, fecha_fin] } },
+          { fecha_fin: { [Op.between]: [fecha_inicio, fecha_fin] } },
+          {
+            [Op.and]: [
+              { fecha_inicio: { [Op.lte]: fecha_inicio } },
+              { fecha_fin: { [Op.gte]: fecha_fin } },
+            ],
+          },
+        ],
+      },
     });
 
-    if (corteExistente) {
-      return res.status(409).json({ error: "Corte semanal ya existe." });
+    if (rangoSolapado) {
+      return res.status(409).json({
+        error: "El rango de fechas ya está cubierto por otro corte.",
+        rangoExistente: {
+          fecha_inicio: rangoSolapado.fecha_inicio,
+          fecha_fin: rangoSolapado.fecha_fin,
+        },
+      });
     }
 
     const cortesDiarios = await CorteDiario.findAll({
@@ -49,6 +77,7 @@ exports.crearCorteSemanal = async (req, res) => {
       cortes.reduce((acc, corte) => acc + parseFloat(corte[campo] || 0), 0);
 
     const cobranzaTotal = sumarTotales(cortesDiarios, "cobranza_total");
+
     const deudoresCobrados = sumarTotales(cortesDiarios, "deudores_cobrados");
     const creditosTotal = sumarTotales(cortesDiarios, "creditos_total");
     const creditosTotalMonto = sumarTotales(
@@ -122,6 +151,20 @@ exports.obtenerCortesSemanales = async (req, res) => {
   } catch (error) {
     console.error("Error al obtener los cortes semanales:", error.message);
     res.status(500).json({ error: "Error interno del servidor." });
+  }
+};
+
+// Obtener cobros por cobrador
+exports.obtenerCortesSemanalPorCobrador = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const cortesSemanales = await CorteSemanal.findAll({
+      where: { collector_id: id },
+    });
+    res.json(cortesSemanales);
+  } catch (error) {
+    console.error("Error al obtener los cortes semanales:", error.message);
+    res.status(500).json({ message: "Error al obtener los cortes semanales." });
   }
 };
 
