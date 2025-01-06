@@ -18,6 +18,10 @@ const CorteSemanal = db.define("CorteSemanal", {
     type: DataTypes.INTEGER,
     defaultValue: 0,
   },
+  no_pagos_total: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
   cobranza_total: {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0.0,
@@ -59,6 +63,10 @@ const CorteSemanal = db.define("CorteSemanal", {
     defaultValue: 0.0,
   },
   total_ingreso: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.0,
+  },
+  total_agente: {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0.0,
   },

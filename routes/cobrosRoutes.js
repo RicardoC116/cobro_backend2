@@ -7,6 +7,8 @@ const {
   obtenerCobros,
   obtenerCobrosPorCobrador,
   obtenerCobrosPorDeudor,
+  eliminarCobro,
+  modificarCobro,
 } = require("../controllers/cobrosController");
 
 // Ruta para registrar un cobro de un deudor
@@ -15,10 +17,16 @@ router.post("/registrar", registrarCobro);
 // Ruta para obtener todos los cobros
 router.get("/", obtenerCobros);
 
-// Ruta para obtener cobros por cobrador (admin) 
+// Ruta para obtener cobros por cobrador (admin)
 router.get("/cobrador/:collectorId", obtenerCobrosPorCobrador);
 
 // Ruta para obtener cobros por deudor (usuario)
 router.get("/deudor/:debtorId", obtenerCobrosPorDeudor);
+
+// Modificar un cobro
+router.put("/modificar", modificarCobro);
+
+// Eliminar un cobro
+router.delete("/eliminar/:cobro_id", eliminarCobro);
 
 module.exports = router;

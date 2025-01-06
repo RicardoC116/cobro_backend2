@@ -15,11 +15,25 @@ exports.getAllCobradores = async (req, res) => {
   }
 };
 
+// Obtener detalles de un deudor específico por ID
+exports.getCobradorById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const cobrador = await Cobrador.findByPk(id);
+    if (!cobrador) {
+      return res.status(404).json({ error: "cobrador no encontrado" });
+    }
+    res.json(cobrador);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // Crear un nuevo cobrador
 exports.createCobrador = async (req, res) => {
   const { name, phone_number, password } = req.body;
   try {
-    // Encriptar la contraseña 
+    // Encriptar la contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const cobrador = await Cobrador.create({
@@ -101,7 +115,7 @@ exports.loginCobrador = async (req, res) => {
 
 // verificar el token
 exports.verifyToken = (req, res) => {
-  const token = req.headers.authorization?.split(" ")[1]; 
+  const token = req.headers.authorization?.split(" ")[1];
 
   if (!token) {
     return res.status(401).json({ message: "Token no proporcionado" });

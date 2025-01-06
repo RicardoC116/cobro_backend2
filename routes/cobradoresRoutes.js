@@ -6,6 +6,7 @@ const cobradoresController = require("../controllers/cobradoresControllers");
 
 // Rutas existentes
 router.get("/", cobradoresController.getAllCobradores);
+router.get("/:id", cobradoresController.getCobradorById);
 router.post("/", cobradoresController.createCobrador);
 router.put("/:id", cobradoresController.updateCobrador);
 router.delete("/:id", cobradoresController.deleteCobrador);

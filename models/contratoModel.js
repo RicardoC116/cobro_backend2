@@ -1,23 +1,36 @@
-// models/debtorModel.js
-
+// models/contratoModel.js
 const { DataTypes } = require("sequelize");
 const db = require("../db");
+const Deudor = require("./deudorModel");
 const Cobrador = require("./cobradorModel");
 
-const Deudor = db.define(
-  "Deudor",
+const Contrato = db.define(
+  "Contrato",
   {
     id: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },
-    contract_number: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      unique: true,
+    deudor_id: {
+      type: DataTypes.INTEGER,
+      references: {
+        model: Deudor,
+        key: "id",
+      },
     },
-    name: {
+    cobrador_id: {
+      type: DataTypes.INTEGER,
+      references: {
+        model: Cobrador,
+        key: "id",
+      },
+    },
+    contract_number: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    nombre_deudor: {
       type: DataTypes.STRING,
       allowNull: false,
     },
@@ -31,38 +44,29 @@ const Deudor = db.define(
     },
     first_payment: {
       type: DataTypes.DECIMAL(10, 2),
-      defaultValue: 0,
+      allowNull: false,
     },
     balance: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
-      defaultValue: 0,
-    },
-    collector_id: {
-      type: DataTypes.INTEGER,
-      references: {
-        model: Cobrador,
-        key: "id",
-      },
     },
     payment_type: {
-      type: DataTypes.ENUM("diario", "semanal"),
+      type: DataTypes.STRING,
       allowNull: false,
     },
-    renovaciones: {
-      type: DataTypes.INTEGER,
-      defaultValue: 0,
+    fecha_inicio: {
+      type: DataTypes.DATE,
       allowNull: false,
     },
-    contract_end_date: {
+    fecha_fin: {
       type: DataTypes.DATE,
       allowNull: true,
     },
   },
   {
-    tableName: "debtors",
+    tableName: "contratos",
     timestamps: true,
   }
 );
 
-module.exports = Deudor;
+module.exports = Contrato;

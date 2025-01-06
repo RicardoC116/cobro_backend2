@@ -111,6 +111,11 @@ exports.crearCorteSemanal = async (req, res) => {
       parseFloat(gastos);
     const saldoFinal = totalIngresos - totalGastos;
 
+    const totalAgente =
+      parseFloat(comision_cobro) +
+      parseFloat(comision_ventas) +
+      parseFloat(gastos);
+
     const nuevoCorteSemanal = await CorteSemanal.create({
       collector_id,
       fecha_inicio,
@@ -130,6 +135,7 @@ exports.crearCorteSemanal = async (req, res) => {
       gastos,
       total_ingreso: totalIngresos,
       total_gasto: totalGastos,
+      total_agente: totalAgente,
       saldo_final: saldoFinal,
     });
 
