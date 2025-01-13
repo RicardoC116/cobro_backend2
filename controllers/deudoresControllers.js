@@ -64,7 +64,7 @@ exports.cambiarCobrador = async (req, res) => {
       where: { contract_number: contractNumber },
     });
     if (!deudor) {
-      return res.status(404).json({ message: "Deudor no encontrado." });
+      return res.status(404).json({ message: "Cliente no encontrado." });
     }
 
     // Validar si el nuevo cobrador existe por su ID
@@ -83,9 +83,15 @@ exports.cambiarCobrador = async (req, res) => {
       { where: { debtor_id: deudor.id } } // Condición para actualizar
     );
 
+    // Actualizar el cobrador en el contrato relacionado al deudor
+    await Contrato.update(
+      { cobrador_id: newCollectorId }, // Nuevo cobrador_id
+      { where: { deudor_id: deudor.id } } // Condición para actualizar
+    );
+
     res.status(200).json({
       message:
-        "El deudor y sus cobros han sido actualizados con el nuevo cobrador.",
+        "El cliente, sus cobros y su contrato han sido actualizados con el nuevo cobrador.",
       deudor,
     });
   } catch (error) {

@@ -51,14 +51,17 @@ exports.createCobrador = async (req, res) => {
 exports.updateCobrador = async (req, res) => {
   const { id } = req.params;
   const { name, phone_number, password } = req.body;
+
   try {
     const cobrador = await Cobrador.findByPk(id);
     if (!cobrador) {
       return res.status(404).json({ error: "Cobrador no encontrado" });
     }
-    cobrador.name = name;
-    cobrador.phone_number = phone_number;
-    cobrador.password = await bcrypt.hash(password, 10);
+
+    // Actualizar solo los campos que se envían en la solicitud
+    if (name) cobrador.name = name;
+    if (phone_number) cobrador.phone_number = phone_number;
+    if (password) cobrador.password = await bcrypt.hash(password, 10);
 
     await cobrador.save();
     res.json(cobrador);
@@ -70,14 +73,18 @@ exports.updateCobrador = async (req, res) => {
 // Eliminar un cobrador
 exports.deleteCobrador = async (req, res) => {
   const { id } = req.params;
+  console.log("ID recibido para eliminar:", id); // Agrega este log
   try {
     const cobrador = await Cobrador.findByPk(id);
     if (!cobrador) {
+      console.log("Cobrador no encontrado");
       return res.status(404).json({ error: "Cobrador no encontrado" });
     }
     await cobrador.destroy();
-    res.json({ message: "Cobrador eliminado" });
+    console.log("Cobrador eliminado correctamente");
+    res.status(200).json({ message: "Cobrador eliminado correctamente" });
   } catch (error) {
+    console.error("Error al eliminar cobrador:", error);
     res.status(500).json({ error: error.message });
   }
 };
