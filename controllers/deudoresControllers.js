@@ -179,18 +179,33 @@ exports.updateDeudor = async (req, res) => {
   }
 };
 
-// Eliminar un deudor
+// Eliminar un deudor y sus cobros
 exports.deleteDeudor = async (req, res) => {
   const { id } = req.params;
   try {
+    // Buscar el deudor
     const deudor = await Deudor.findByPk(id);
     if (!deudor) {
       return res.status(404).json({ error: "Deudor no encontrado" });
     }
+
+    // Eliminar los cobros asociados al deudor
+    const cobrosEliminados = await Cobro.destroy({ where: { debtor_id: id } });
+
+    // Eliminar los contratos asociados al deudor
+    await Contrato.destroy({ where: { deudor_id: id } });
+
+    // Eliminar el deudor
     await deudor.destroy();
-    res.json({ message: "Deudor eliminado" });
+
+    res.json({
+      message: `Deudor y sus cobros eliminados con éxito. Cobros eliminados: ${cobrosEliminados}`,
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error al eliminar el deudor:", error);
+    res
+      .status(500)
+      .json({ error: "Error al eliminar al deudor: " + error.message });
   }
 };
 
