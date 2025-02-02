@@ -1,4 +1,4 @@
-// controllers/cobrosController.js
+const { DateTime } = require("luxon");
 const Cobro = require("../models/cobroModel");
 const Cobrador = require("../models/cobradorModel");
 const Deudor = require("../models/deudorModel");
@@ -35,6 +35,13 @@ exports.registrarCobro = async (req, res) => {
         .json({ message: "El monto excede el balance del deudor." });
     }
 
+    // Convertir la fecha a la zona horaria de México
+    const paymentDateFinal = payment_date
+      ? DateTime.fromISO(payment_date, {
+          zone: "America/Mexico_City",
+        }).toJSDate()
+      : DateTime.now().setZone("America/Mexico_City").toJSDate();
+
     const nuevoBalance = deudor.balance - amount;
     const payment_type = nuevoBalance === 0 ? "liquidación" : "normal";
 
@@ -42,7 +49,7 @@ exports.registrarCobro = async (req, res) => {
       collector_id,
       debtor_id,
       amount,
-      payment_date,
+      payment_date: paymentDateFinal,
       payment_type,
     });
 
@@ -50,7 +57,9 @@ exports.registrarCobro = async (req, res) => {
 
     // Registrar la fecha de finalización si el balance llega a 0
     if (nuevoBalance === 0) {
-      deudor.contract_end_date = new Date(); // Fecha actual
+      deudor.contract_end_date = DateTime.now()
+        .setZone("America/Mexico_City")
+        .toJSDate();
     }
 
     await deudor.save();

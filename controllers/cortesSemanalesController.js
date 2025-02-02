@@ -2,6 +2,7 @@
 const CorteSemanal = require("../models/corteSemanalModel");
 const CorteDiario = require("../models/corteDiarioModel");
 const { Op } = require("sequelize");
+const { DateTime } = require("luxon");
 
 // Crear corte semanal
 exports.crearCorteSemanal = async (req, res) => {
@@ -21,8 +22,13 @@ exports.crearCorteSemanal = async (req, res) => {
   }
 
   try {
-    const inicio = new Date(fecha_inicio);
-    const fin = new Date(fecha_fin);
+    const inicio = DateTime.fromISO(fecha_inicio, {
+      zone: "America/Mexico_City",
+    }).toJSDate();
+
+    const fin = DateTime.fromISO(fecha_fin, {
+      zone: "America/Mexico_City",
+    }).toJSDate();
 
     if (isNaN(inicio) || isNaN(fin)) {
       return res.status(400).json({ error: "Fechas inválidas." });

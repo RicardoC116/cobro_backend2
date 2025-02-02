@@ -17,6 +17,12 @@ app.use(cors()); // Habilitar CORS para todas las rutas
 // Middleware para parsear JSON
 app.use(express.json());
 
+app.use((req, res, next) => {
+  console.log(`[${req.method}] ${req.url}`);
+  console.log("Body recibido:", req.body);
+  next();
+});
+
 // Verificar la conexión a la base de datos y sincronizar los modelos
 db.authenticate()
   .then(() => {

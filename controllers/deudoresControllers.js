@@ -1,7 +1,7 @@
 // controllers/deudoresController.js
 const Deudor = require("../models/deudorModel");
 const Cobrador = require("../models/cobradorModel");
-const { Op } = require("sequelize");
+const { Op, json } = require("sequelize");
 const Cobro = require("../models/cobroModel");
 const Contrato = require("../models/contratoModel");
 
@@ -64,12 +64,17 @@ exports.cambiarCobrador = async (req, res) => {
       where: { contract_number: contractNumber },
     });
     if (!deudor) {
+      console.log(
+        "Deudor no encontrado con el número de contrato:",
+        contractNumber
+      );
       return res.status(404).json({ message: "Cliente no encontrado." });
     }
 
     // Validar si el nuevo cobrador existe por su ID
     const nuevoCobrador = await Cobrador.findByPk(newCollectorId);
     if (!nuevoCobrador) {
+      console.log("Cobrador no encontrado con ID:", newCollectorId);
       return res.status(404).json({ message: "Nuevo cobrador no encontrado." });
     }
 
@@ -79,15 +84,11 @@ exports.cambiarCobrador = async (req, res) => {
 
     // Actualizar el cobrador en todos los cobros relacionados al deudor
     await Cobro.update(
-      { collector_id: newCollectorId }, // Nuevo collector_id
-      { where: { debtor_id: deudor.id } } // Condición para actualizar
+      { collector_id: newCollectorId },
+      { where: { debtor_id: deudor.id } }
     );
 
-    // Actualizar el cobrador en el contrato relacionado al deudor
-    await Contrato.update(
-      { cobrador_id: newCollectorId }, // Nuevo cobrador_id
-      { where: { deudor_id: deudor.id } } // Condición para actualizar
-    );
+    console.log("Actualización exitosa para el deudor y cobros asociados.");
 
     res.status(200).json({
       message:
@@ -149,33 +150,63 @@ exports.renovarContratoDeudor = async (req, res) => {
 // Actualizar un deudor
 exports.updateDeudor = async (req, res) => {
   const { id } = req.params;
-  const {
-    contract_number,
-    name,
-    amount,
-    total_to_pay,
-    first_payment,
-    balance,
-    collector_id,
-    payment_type,
-  } = req.body;
+  const updates = req.body;
+
   try {
     const deudor = await Deudor.findByPk(id);
     if (!deudor) {
-      return res.status(404).json({ error: "Deudor no encontrado" });
+      return res.status(404).json({ error: "Deudor no encontrado." });
     }
-    deudor.contract_number = contract_number;
-    deudor.name = name;
-    deudor.amount = amount;
-    deudor.total_to_pay = total_to_pay;
-    deudor.first_payment = first_payment;
+
+    // Obtener total cobrado (suma de todos los cobros)
+    const totalCobrado =
+      (await Cobro.sum("amount", { where: { debtor_id: id } })) || 0;
+
+    // Campos permitidos para actualizar (sin balance)
+    const camposPermitidos = [
+      "contract_number",
+      "name",
+      "amount",
+      "total_to_pay",
+      "first_payment",
+      "collector_id",
+      "payment_type",
+    ];
+
+    // Aplicar solo campos enviados (ignorar balance)
+    camposPermitidos.forEach((campo) => {
+      if (updates[campo] !== undefined && updates[campo] !== "") {
+        deudor[campo] = updates[campo];
+      }
+    });
+
+    // Recalcular balance automáticamente
+    const totalToPay = deudor.total_to_pay;
+    const firstPayment = deudor.first_payment;
+    const balance = totalToPay - (firstPayment + totalCobrado);
+
+    // Validar consistencia
+    if (firstPayment + totalCobrado > totalToPay) {
+      return res.status(400).json({
+        error:
+          "La suma del primer pago y los cobros no puede superar el total a pagar.",
+      });
+    }
+
+    if (balance < 0 || firstPayment < 0 || totalToPay < 0) {
+      return res
+        .status(400)
+        .json({ error: "Los valores no pueden ser negativos." });
+    }
+
+    // Actualizar balance automáticamente (no se permite enviarlo manualmente)
     deudor.balance = balance;
-    deudor.collector_id = collector_id;
-    deudor.payment_type = payment_type;
+
     await deudor.save();
     res.json(deudor);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error al actualizar el deudor:", error);
+    res.status(500).json({ error: "Error interno al actualizar el deudor." });
   }
 };
 

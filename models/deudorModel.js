@@ -31,12 +31,13 @@ const Deudor = db.define(
     },
     first_payment: {
       type: DataTypes.DECIMAL(10, 2),
-      defaultValue: 0,
+      allowNull: true,
+      defaultValue: null,
     },
     balance: {
       type: DataTypes.DECIMAL(10, 2),
-      allowNull: false,
-      defaultValue: 0,
+      allowNull: true,
+      defaultValue: null,
     },
     collector_id: {
       type: DataTypes.INTEGER,
@@ -52,7 +53,7 @@ const Deudor = db.define(
     renovaciones: {
       type: DataTypes.INTEGER,
       defaultValue: 0,
-      allowNull: false,
+      allowNull: true,
     },
     contract_end_date: {
       type: DataTypes.DATE,

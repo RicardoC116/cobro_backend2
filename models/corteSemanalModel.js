@@ -4,7 +4,7 @@ const db = require("../db");
 const CorteSemanal = db.define("CorteSemanal", {
   collector_id: {
     type: DataTypes.INTEGER,
-    allowNull: false, // o true si no es obligatorio
+    allowNull: false, 
   },
   fecha_inicio: {
     type: DataTypes.DATE,
