@@ -4,6 +4,7 @@ const { DataTypes } = require("sequelize");
 const db = require("../db");
 const Cobrador = require("./cobradorModel");
 const Deudor = require("./deudorModel");
+const { DateTime } = require("luxon");
 
 const Cobro = db.define(
   "Cobro",
@@ -36,6 +37,12 @@ const Cobro = db.define(
     payment_date: {
       type: DataTypes.DATE,
       allowNull: false,
+      get() {
+        const rawValue = this.getDataValue("payment_date");
+        return rawValue
+          ? DateTime.fromJSDate(rawValue).setZone("America/Mexico_City").toISO()
+          : null;
+      },
     },
     payment_type: {
       type: DataTypes.ENUM("normal", "liquidación"),

@@ -24,13 +24,22 @@ exports.crearCorteSemanal = async (req, res) => {
   try {
     const inicio = DateTime.fromISO(fecha_inicio, {
       zone: "America/Mexico_City",
-    }).toJSDate();
+    })
+      .startOf("day")
+      .toUTC()
+      .toISO();
 
     const fin = DateTime.fromISO(fecha_fin, {
       zone: "America/Mexico_City",
-    }).toJSDate();
+    })
+      .startOf("day")
+      .toUTC()
+      .toISO();
 
-    if (isNaN(inicio) || isNaN(fin)) {
+    console.log("fecha Inicio (ISO):", inicio);
+    console.log("fecha Fin (ISO):", fin);
+
+    if (!inicio || !fin) {
       return res.status(400).json({ error: "Fechas inválidas." });
     }
 
@@ -124,8 +133,10 @@ exports.crearCorteSemanal = async (req, res) => {
 
     const nuevoCorteSemanal = await CorteSemanal.create({
       collector_id,
-      fecha_inicio,
-      fecha_fin,
+      fecha_inicio: inicio,
+      fecha_fin: fin,
+      // fecha_inicio,
+      // fecha_fin,
       cobranza_total: cobranzaTotal,
       deudores_cobrados: deudoresCobrados,
       liquidaciones_total: liquidacionesTotal,

@@ -39,6 +39,16 @@ const Deudor = db.define(
       allowNull: true,
       defaultValue: null,
     },
+    numero_telefono: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: null,
+    },
+    suggested_payment: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      defaultValue: null,
+    },
     collector_id: {
       type: DataTypes.INTEGER,
       references: {

@@ -24,6 +24,8 @@ exports.createDeudor = async (req, res) => {
     total_to_pay,
     first_payment,
     balance,
+    numero_telefono,
+    suggested_payment,
     phone_number,
     payment_type,
   } = req.body;
@@ -43,6 +45,8 @@ exports.createDeudor = async (req, res) => {
       total_to_pay,
       first_payment,
       balance: balanceInicial,
+      numero_telefono,
+      suggested_payment,
       collector_id: cobrador.id,
       payment_type,
     });
@@ -169,6 +173,8 @@ exports.updateDeudor = async (req, res) => {
       "amount",
       "total_to_pay",
       "first_payment",
+      "numero_telefono",
+      "suggested_payment",
       "collector_id",
       "payment_type",
     ];
