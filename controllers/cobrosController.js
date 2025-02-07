@@ -209,32 +209,35 @@ exports.obtenerCobros = async (req, res) => {
 
 exports.obtenerCobrosPorDia = async (req, res) => {
   try {
-    const { fecha } = req.query; //Para recibir la fecha
+    const { fecha } = req.query; // Para recibir la fecha
 
-    // Si no hay fecha se toma del dia de hoy
-    const fehcaMexico = fecha
-      ? DateTime.fromISO(fecha, { zone: "America/Mexico_City" }).startOf("day")
-      : DateTime.now().setZone("America/Mexico_City").startOf("day");
+    // Si hay fecha en la petición, se usa; si no, se toma la fecha de hoy
+    const fechaBase = fecha
+      ? DateTime.fromISO(fecha, { zone: "America/Mexico_City" })
+      : DateTime.now().setZone("America/Mexico_City");
 
-    // Iniciamos el dia
-    const fechaInicio = fehcaMexico.toISO();
-    // Terminamos el dia
-    const fechaFin = fehcaMexico.endOf("day").toISO();
+    // Iniciamos el día a las 00:00:00 y finalizamos a las 23:59:59
+    const fechaInicio = fechaBase
+      .startOf("day")
+      .toISO({ suppressMilliseconds: true });
+    const fechaFin = fechaBase
+      .endOf("day")
+      .toISO({ suppressMilliseconds: true });
 
     console.log("Buscando cobros entre", fechaInicio, "y", fechaFin);
 
-    const cobrosdelDia = await Cobro.findAll({
+    const cobrosDelDia = await Cobro.findAll({
       where: {
         payment_date: {
-          [Op.between]: [fechaInicio, fechaFin], //Buscamos entre ese rango de fechas
+          [Op.between]: [fechaInicio, fechaFin], // Buscamos entre ese rango de fechas
         },
       },
     });
 
-    res.status(200).json(cobrosdelDia);
+    res.status(200).json(cobrosDelDia);
   } catch (error) {
-    console.log("Error al obtener cobros del dia", error);
-    res.status(500).json({ message: "Error al obtener cobros del dia" });
+    console.log("Error al obtener cobros del día", error);
+    res.status(500).json({ message: "Error al obtener cobros del día" });
   }
 };
 

@@ -1,8 +1,20 @@
 // CortesDiariosController
+const { DateTime } = require("luxon"); // Asegúrate de que luxon está instalado
 const CorteDiario = require("../models/corteDiarioModel");
 const deudoresController = require("./deudoresControllers");
 const cobrosController = require("./cobrosController");
 const { Op } = require("sequelize");
+
+// Función para ajustar la fecha a zona horaria México y convertirla a UTC
+function ajustarFechaMexico(fecha, inicioDelDia = true) {
+  return inicioDelDia
+    ? DateTime.fromJSDate(fecha, { zone: "America/Mexico_City" })
+        .startOf("day")
+        .toISO({ suppressMilliseconds: true })
+    : DateTime.fromJSDate(fecha, { zone: "America/Mexico_City" })
+        .endOf("day")
+        .toISO({ suppressMilliseconds: true });
+}
 
 exports.registrarCorteDiario = async (req, res) => {
   const { collector_id, fecha } = req.body;
@@ -19,25 +31,29 @@ exports.registrarCorteDiario = async (req, res) => {
       order: [["fecha", "DESC"]],
     });
 
-    const fechaInicio = ultimoCorte
-      ? new Date(new Date(ultimoCorte.fecha).getTime() + 24 * 60 * 60 * 1000)
-      : new Date(new Date().setHours(0, 0, 0, 0));
-    const fechaFin = fecha ? new Date(fecha) : new Date();
+    // Definir fecha de inicio basada en el último corte o en hoy
+    const fechaBase = ultimoCorte ? new Date(ultimoCorte.fecha) : new Date();
+    const fechaInicio = ajustarFechaMexico(fechaBase, true); // 2025-02-06T00:00:00-06:00
 
-    fechaFin.setHours(fechaFin.getHours() - 6);
-    const fechaCorte = fechaFin.toISOString().split("T")[0];
+    // Si hay una fecha en la petición, se usa; si no, se usa hoy
+    const fechaBaseFin =
+      fecha && !isNaN(Date.parse(fecha)) ? new Date(fecha) : new Date();
+    const fechaFin = ajustarFechaMexico(fechaBaseFin, false); // 2025-02-06T23:59:59-06:00
 
-    // 1. Obtener cobros en el rango
+    console.log("Fecha Inicio (ISO):", fechaInicio);
+    console.log("Fecha Fin (ISO):", fechaFin);
+
+    // Obtener cobros en el rango
     const cobros = await cobrosController.obtenerCobrosEnRango(
       collector_id,
       fechaInicio,
       fechaFin
     );
 
-    // 2. Extraer deudores que pagaron
+    // Obtener deudores que pagaron
     const deudoresCobros = Array.from(new Set(cobros.map((c) => c.debtor_id)));
 
-    // 3. Obtener nuevos deudores (primeros pagos)
+    // Obtener nuevos deudores (primeros pagos)
     const nuevosDeudores = await deudoresController.obtenerNuevosDeudores(
       collector_id,
       fechaInicio,
@@ -47,27 +63,31 @@ exports.registrarCorteDiario = async (req, res) => {
       deudoresController.calcularPrimerosPagos(nuevosDeudores);
     const deudoresPrimerosPagos = nuevosDeudores.map((d) => d.id);
 
-    // 4. Unificar ambas listas de deudores que han pagado
+    // Unificar listas de deudores que han pagado
     const deudoresPagaron = Array.from(
       new Set([...deudoresCobros, ...deudoresPrimerosPagos])
     );
 
-    // 5. Calcular estadísticas
-    const cobranzaTotal = cobrosController.calcularCobranzaTotal(cobros);
-    const liquidaciones = cobrosController.calcularLiquidaciones(cobros);
+    // Calcular estadísticas
+    const cobranzaTotal = cobrosController.calcularCobranzaTotal(cobros) || 0;
+    const liquidaciones = cobrosController.calcularLiquidaciones(cobros) || {
+      total: 0,
+      deudoresLiquidados: [],
+    };
 
     const deudoresActivos = await deudoresController.obtenerDeudoresActivos(
       collector_id
     );
-    const noPagosTotal = deudoresController.obtenerDeudoresNoPagaron(
-      deudoresActivos,
-      deudoresPagaron
-    );
+    const noPagosTotal =
+      deudoresController.obtenerDeudoresNoPagaron(
+        deudoresActivos,
+        deudoresPagaron
+      ) || 0;
 
-    // 6. Registrar el corte diario
+    // Registrar el corte diario con fechas en formato ISO en México
     const corte = await CorteDiario.create({
       collector_id,
-      fecha: fechaCorte,
+      fecha: fechaFin, // Guardamos la fecha en la zona horaria de México
       cobranza_total: cobranzaTotal,
       deudores_cobrados: deudoresPagaron.length,
       liquidaciones_total: liquidaciones.total,
@@ -75,9 +95,9 @@ exports.registrarCorteDiario = async (req, res) => {
       no_pagos_total: noPagosTotal,
       creditos_total: nuevosDeudores.length,
       creditos_total_monto:
-        deudoresController.calcularCreditosTotales(nuevosDeudores),
+        deudoresController.calcularCreditosTotales(nuevosDeudores) || 0,
       primeros_pagos_total: deudoresPrimerosPagos.length,
-      primeros_pagos_montos: primerosPagosMontos,
+      primeros_pagos_montos: primerosPagosMontos || [],
       nuevos_deudores: nuevosDeudores.length,
       deudores_totales: deudoresActivos.length,
     });
@@ -87,7 +107,12 @@ exports.registrarCorteDiario = async (req, res) => {
       .json({ message: "Corte diario registrado exitosamente.", corte });
   } catch (error) {
     console.error("Error al registrar el corte diario:", error);
-    res.status(500).json({ error: "Error al registrar el corte diario." });
+    res
+      .status(500)
+      .json({
+        error: "Error al registrar el corte diario.",
+        detalle: error.message,
+      });
   }
 };
 
