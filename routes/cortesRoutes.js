@@ -18,6 +18,13 @@ const {
   obtenerCortesSemanalPorCobrador,
 } = require("../controllers/cortesSemanalesController");
 
+// PreCortes
+const {
+  registrarPreCorte,
+  obtenerPreCorte,
+  deletePreCorte,
+} = require("../controllers/PreCorteDiarioController");
+
 const router = express.Router();
 
 router.post("/diario", registrarCorteDiario);
@@ -30,5 +37,10 @@ router.post("/semanal", crearCorteSemanal);
 router.get("/semanal", obtenerCortesSemanales);
 router.get("/semanal/:id", obtenerCortesSemanalPorCobrador);
 router.delete("/semanal/:id", deleteCorteSemanal);
+
+// Precortes
+router.post("/registrar", registrarPreCorte);
+router.get("/preCorte/:id", obtenerPreCorte);
+router.delete("/preCorte/:id", deletePreCorte);
 
 module.exports = router;
