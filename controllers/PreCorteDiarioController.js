@@ -1,5 +1,4 @@
-// PreCorteDiarioController.js
-const { DateTime } = require("luxon");
+const moment = require("moment-timezone");
 const PreCorteDiario = require("../models/PreCorteDiarioModel");
 const deudoresController = require("./deudoresControllers");
 const cobrosController = require("./cobrosController");
@@ -7,15 +6,11 @@ const { Op } = require("sequelize");
 const CorteDiario = require("../models/corteDiarioModel");
 const Cobrador = require("../models/cobradorModel");
 
-// Función para ajustar la fecha a zona horaria México y convertirla a UTC
+// Función para ajustar fecha a zona horaria de México y luego convertirla a UTC
 function ajustarFechaMexico(fecha, inicioDelDia = true) {
   return inicioDelDia
-    ? DateTime.fromJSDate(fecha, { zone: "America/Mexico_City" })
-        .startOf("day")
-        .toISO({ suppressMilliseconds: true })
-    : DateTime.fromJSDate(fecha, { zone: "America/Mexico_City" })
-        .endOf("day")
-        .toISO({ suppressMilliseconds: true });
+    ? moment.tz(fecha, "America/Mexico_City").startOf("day").utc().format()
+    : moment.tz(fecha, "America/Mexico_City").endOf("day").utc().format();
 }
 
 exports.registrarPreCorte = async (req, res) => {
@@ -32,8 +27,8 @@ exports.registrarPreCorte = async (req, res) => {
     const fechaInicioHoy = ajustarFechaMexico(fechaBase, true);
     const fechaFin = ajustarFechaMexico(fechaBase, false);
 
-    console.log("Fecha Inicio del Día:", fechaInicioHoy);
-    console.log("Fecha Fin del Día:", fechaFin);
+    console.log("Fecha Inicio del Día (UTC):", fechaInicioHoy);
+    console.log("Fecha Fin del Día (UTC):", fechaFin);
 
     // **Obtener el último pre-corte del día**
     const ultimoPreCorte = await PreCorteDiario.findOne({
@@ -48,7 +43,7 @@ exports.registrarPreCorte = async (req, res) => {
 
     if (ultimoPreCorte) {
       fechaInicio = new Date(ultimoPreCorte.fecha);
-      console.log("Último Pre-Corte encontrado:", fechaInicio);
+      console.log("Último Pre-Corte encontrado (UTC):", fechaInicio);
     } else {
       // **Buscar el último corte diario si no hay pre-cortes**
       const ultimoCorteDiario = await CorteDiario.findOne({
@@ -58,7 +53,10 @@ exports.registrarPreCorte = async (req, res) => {
 
       if (ultimoCorteDiario) {
         fechaInicio = new Date(ultimoCorteDiario.fecha);
-        console.log("Usando la fecha del último Corte Diario:", fechaInicio);
+        console.log(
+          "Usando la fecha del último Corte Diario (UTC):",
+          fechaInicio
+        );
       } else {
         // **Si no hay cortes, buscar la fecha de creación del cobrador**
         const cobrador = await Cobrador.findOne({
@@ -68,7 +66,10 @@ exports.registrarPreCorte = async (req, res) => {
 
         if (cobrador) {
           fechaInicio = new Date(cobrador.createdAt);
-          console.log("Usando la fecha de creación del cobrador:", fechaInicio);
+          console.log(
+            "Usando la fecha de creación del cobrador (UTC):",
+            fechaInicio
+          );
         } else {
           console.error("No se encontró el cobrador.");
           return res.status(404).json({ error: "Cobrador no encontrado." });
@@ -122,7 +123,7 @@ exports.registrarPreCorte = async (req, res) => {
       collector_id,
       ventanilla_id,
       agente,
-      fecha: new Date().toISOString(),
+      fecha: moment().utc().format(), // Guardar en UTC
       cobranza_total: cobranzaTotal,
       deudores_cobrados: deudoresPagaron.length || 0,
       liquidaciones_total: liquidaciones.total || 0,
@@ -156,11 +157,18 @@ exports.registrarPreCorte = async (req, res) => {
 
 exports.obtenerPreCorte = async (req, res) => {
   try {
-    const { id } = req.params; // Ajustar el nombre del parámetro
-    const preCorte = await PreCorteDiario.findAll({
-      where: { collector_id: id }, // Usar "id" correctamente aquí
+    const { id } = req.params;
+    const preCortes = await PreCorteDiario.findAll({
+      where: { collector_id: id },
     });
-    res.json(preCorte);
+
+    // Convertir fechas de UTC a zona horaria de México antes de enviarlas
+    const preCortesAjustados = preCortes.map((preCorte) => ({
+      ...preCorte.toJSON(),
+      fecha: moment.utc(preCorte.fecha).tz("America/Mexico_City").format(),
+    }));
+
+    res.json(preCortesAjustados);
   } catch (error) {
     console.error("Error al obtener los Pre-Cortes por cobrador:", error);
     res

@@ -37,13 +37,8 @@ const Cobro = db.define(
     payment_date: {
       type: DataTypes.DATE,
       allowNull: false,
-      get() {
-        const rawValue = this.getDataValue("payment_date");
-        return rawValue
-          ? DateTime.fromJSDate(rawValue).setZone("America/Mexico_City").toISO()
-          : null;
-      },
     },
+
     payment_type: {
       type: DataTypes.ENUM("normal", "liquidación"),
       allowNull: false,
