@@ -209,34 +209,30 @@ exports.obtenerCobros = async (req, res) => {
 
 exports.obtenerCobrosPorDia = async (req, res) => {
   try {
-    const { fecha } = req.query; // Para recibir la fecha
+    const { fecha } = req.query;
 
-    // Si hay fecha en la petición, se usa; si no, se toma la fecha de hoy
+    // Convertir la fecha recibida o tomar la fecha de hoy en la zona horaria de México
     const fechaBase = fecha
       ? DateTime.fromISO(fecha, { zone: "America/Mexico_City" })
       : DateTime.now().setZone("America/Mexico_City");
 
-    // Iniciamos el día a las 00:00:00 y finalizamos a las 23:59:59
-    const fechaInicio = fechaBase
-      .startOf("day")
-      .toISO({ suppressMilliseconds: true });
-    const fechaFin = fechaBase
-      .endOf("day")
-      .toISO({ suppressMilliseconds: true });
+    // Definir el inicio y fin del día en México y convertir a UTC para la base de datos
+    const fechaInicio = fechaBase.startOf("day").toUTC().toISO();
+    const fechaFin = fechaBase.endOf("day").toUTC().toISO();
 
     console.log("Buscando cobros entre", fechaInicio, "y", fechaFin);
 
     const cobrosDelDia = await Cobro.findAll({
       where: {
         payment_date: {
-          [Op.between]: [fechaInicio, fechaFin], // Buscamos entre ese rango de fechas
+          [Op.between]: [fechaInicio, fechaFin],
         },
       },
     });
 
     res.status(200).json(cobrosDelDia);
   } catch (error) {
-    console.log("Error al obtener cobros del día", error);
+    console.error("Error al obtener cobros del día", error);
     res.status(500).json({ message: "Error al obtener cobros del día" });
   }
 };
