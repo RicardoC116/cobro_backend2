@@ -1,9 +1,17 @@
 const { DateTime } = require("luxon");
+const moment = require("moment-timezone");
 const Cobro = require("../models/cobroModel");
 const Cobrador = require("../models/cobradorModel");
 const Deudor = require("../models/deudorModel");
 
 const { Op } = require("sequelize");
+
+// 📌 Función para ajustar fechas a la zona horaria de México y convertirlas a UTC
+function ajustarFechaMexico(fecha, inicioDelDia = true) {
+  return inicioDelDia
+    ? moment.tz(fecha, "America/Mexico_City").startOf("day").utc().format()
+    : moment.tz(fecha, "America/Mexico_City").endOf("day").utc().format();
+}
 
 exports.registrarCobro = async (req, res) => {
   try {
@@ -210,19 +218,19 @@ exports.obtenerCobros = async (req, res) => {
 exports.obtenerCobrosPorDia = async (req, res) => {
   try {
     const { fecha } = req.query;
+    if (!fecha) {
+      return res.status(400).json({ message: "Se requiere una fecha." });
+    }
 
-    // Convertir la fecha recibida o tomar la fecha de hoy en la zona horaria de México
-    const fechaBase = fecha
-      ? DateTime.fromISO(fecha, { zone: "America/Mexico_City" })
-      : DateTime.now().setZone("America/Mexico_City");
+    // 📌 Convertimos la fecha a UTC usando la zona horaria de México
+    const fechaBase = moment.tz(fecha, "America/Mexico_City").toDate();
+    const fechaInicio = ajustarFechaMexico(fechaBase, true);
+    const fechaFin = ajustarFechaMexico(fechaBase, false);
 
-    // Definir el inicio y fin del día en México y convertir a UTC para la base de datos
-    const fechaInicio = fechaBase.startOf("day").toUTC().toISO();
-    const fechaFin = fechaBase.endOf("day").toUTC().toISO();
+    console.log("Buscando cobros entre:", fechaInicio, "y", fechaFin);
 
-    console.log("Buscando cobros entre", fechaInicio, "y", fechaFin);
-
-    const cobrosDelDia = await Cobro.findAll({
+    // 📌 Consulta en la base de datos con el rango de fechas en UTC
+    const cobros = await Cobro.findAll({
       where: {
         payment_date: {
           [Op.between]: [fechaInicio, fechaFin],
@@ -230,10 +238,10 @@ exports.obtenerCobrosPorDia = async (req, res) => {
       },
     });
 
-    res.status(200).json(cobrosDelDia);
+    res.json({ cobros });
   } catch (error) {
-    console.error("Error al obtener cobros del día", error);
-    res.status(500).json({ message: "Error al obtener cobros del día" });
+    console.error("Error al obtener los cobros:", error);
+    res.status(500).json({ message: "Error al obtener los cobros." });
   }
 };
 
