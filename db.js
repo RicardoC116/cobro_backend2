@@ -10,8 +10,9 @@ const db = new Sequelize(
     host: process.env.DB_HOST,
     dialect: "mysql",
     port: process.env.DB_PORT,
-    timezone: "-6:00",
+    timezone: "UTC", // Guardar en UTC
   }
 );
+
 
 module.exports = db;

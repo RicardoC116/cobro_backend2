@@ -112,17 +112,22 @@ exports.registrarCorteDiario = async (req, res) => {
 // 📌 Obtener los cortes diarios registrados y convertir la fecha de UTC a `America/Mexico_City`
 exports.obtenerCortesDiarios = async (req, res) => {
   try {
-    const cortesDiarios = await CorteDiario.findAll();
+    const { id } = req.params;
+    const cortesDiarios = await CorteDiario.findAll({
+      where: { collector_id: id },
+      order: [["fecha", "DESC"]],
+    });
 
-    const cortesConvertidos = cortesDiarios.map((corte) => ({
+    // Convertir la fecha de UTC a la zona horaria de México antes de enviarla
+    const cortesAjustados = cortesDiarios.map((corte) => ({
       ...corte.toJSON(),
       fecha: moment.utc(corte.fecha).tz("America/Mexico_City").format(),
     }));
 
-    res.status(200).json({ data: cortesConvertidos });
+    res.json(cortesAjustados);
   } catch (error) {
-    console.error("❌ Error al obtener cortes diarios:", error);
-    res.status(500).json({ error: "Error interno del servidor." });
+    console.error("❌ Error al obtener los cortes diarios:", error);
+    res.status(500).json({ error: "Error al obtener los cortes diarios." });
   }
 };
 
