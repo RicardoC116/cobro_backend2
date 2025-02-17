@@ -25,6 +25,9 @@ exports.registrarPreCorte = async (req, res) => {
     const fechaInicioHoy = obtenerFechaUTC(true);
     const fechaFin = obtenerFechaUTC(false);
 
+    console.log("UTC:", new Date().toISOString());
+    console.log("Local:", new Date().toLocaleString("es-MX"));
+
     console.log("📆 Fecha Inicio del Día (UTC):", fechaInicioHoy);
     console.log("📆 Fecha Fin del Día (UTC):", fechaFin);
 
