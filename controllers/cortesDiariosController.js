@@ -88,7 +88,7 @@ exports.registrarCorteDiario = async (req, res) => {
     // 📌 Registrar el corte diario
     const corteDiario = await CorteDiario.create({
       collector_id,
-      fecha: moment().utc().format(),
+      fecha: moment().tz("America/Mexico_City").format("YYYY-MM-DD"),
       cobranza_total: cobranzaTotal,
       deudores_cobrados: deudoresCobros.length,
       liquidaciones_total: liquidacionesTotal,
@@ -104,8 +104,6 @@ exports.registrarCorteDiario = async (req, res) => {
       deudores_totales: deudoresActivos,
     });
 
-    console.log("📅 Fecha guardada en corteDiario:", corteDiario.fecha);
-
     // 📌 Eliminar pre-cortes después de hacer el corte definitivo
     await PreCorteDiario.destroy({
       where: {
@@ -114,6 +112,20 @@ exports.registrarCorteDiario = async (req, res) => {
       },
     });
 
+    console.log(
+      "Fecha antes de guardar:",
+      moment().tz("America/Mexico_City").format("YYYY-MM-DD")
+    );
+
+    console.log(
+      "Fecha de la base de datos:",
+      moment
+        .utc(corte.fecha)
+        .tz("America/Mexico_City")
+        .format("YYYY-MM-DD HH:mm:ss")
+    );
+
+    console.log("📅 Fecha guardada en corteDiario:", corteDiario.fecha);
     console.log("✅ Corte Diario registrado exitosamente.", corteDiario);
     res.status(201).json({
       message: "Corte Diario registrado exitosamente.",
