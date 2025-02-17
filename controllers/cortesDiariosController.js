@@ -88,7 +88,7 @@ exports.registrarCorteDiario = async (req, res) => {
     // 📌 Registrar el corte diario
     const corteDiario = await CorteDiario.create({
       collector_id,
-      fecha: moment().tz("America/Mexico_City").format("YYYY-MM-DD HH:mm:ss"), // Guardar también la hora
+      fecha: fechaFin,
       cobranza_total: cobranzaTotal,
       deudores_cobrados: deudoresCobros.length,
       liquidaciones_total: liquidacionesTotal,
@@ -112,7 +112,7 @@ exports.registrarCorteDiario = async (req, res) => {
       },
     });
 
-    console.log("✅ Corte Diario registrado exitosamente." + corteDiario);
+    console.log("✅ Corte Diario registrado exitosamente.", corteDiario);
     res.status(201).json({
       message: "Corte Diario registrado exitosamente.",
       corteDiario,
