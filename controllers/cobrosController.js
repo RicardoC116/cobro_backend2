@@ -3,7 +3,6 @@ const moment = require("moment-timezone");
 const Cobro = require("../models/cobroModel");
 const Cobrador = require("../models/cobradorModel");
 const Deudor = require("../models/deudorModel");
-const moment = require("moment-timezone");
 
 const { Op } = require("sequelize");
 
