@@ -88,11 +88,7 @@ exports.registrarCorteDiario = async (req, res) => {
     // 📌 Registrar el corte diario
     const corteDiario = await CorteDiario.create({
       collector_id,
-      fecha: moment()
-        .tz("America/Mexico_City")
-        .startOf("day")
-        .utc()
-        .format("YYYY-MM-DD HH:mm:ss"),
+      fecha: new Date().toISOString().split("T")[0],
       cobranza_total: cobranzaTotal,
       deudores_cobrados: deudoresCobros.length,
       liquidaciones_total: liquidacionesTotal,
