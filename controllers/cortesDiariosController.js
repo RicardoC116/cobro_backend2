@@ -1,13 +1,24 @@
 const moment = require("moment-timezone");
 const CorteDiario = require("../models/corteDiarioModel");
+const deudoresController = require("./deudoresControllers");
+const Cobro = require("../models/cobroModel");
+const Deudor = require("../models/deudorModel");
 const { Op } = require("sequelize");
 const PreCorteDiario = require("../models/PreCorteDiarioModel");
 
-// 📌 Función para ajustar la fecha a la zona horaria de México y convertirla a UTC
-function ajustarFechaMexico(fecha, inicioDelDia = true) {
-  return inicioDelDia
-    ? moment.tz(fecha, "America/Mexico_City").startOf("day").utc().format()
-    : moment.tz(fecha, "America/Mexico_City").endOf("day").utc().format();
+// 📌 Función para obtener la fecha de inicio y fin del día en la zona horaria de México
+function obtenerRangoDiaActual() {
+  const fechaInicio = moment
+    .tz("America/Mexico_City")
+    .startOf("day")
+    .utc()
+    .format();
+  const fechaFin = moment()
+    .tz("America/Mexico_City")
+    .endOf("day")
+    .utc()
+    .format();
+  return { fechaInicio, fechaFin };
 }
 
 exports.registrarCorteDiario = async (req, res) => {
@@ -20,72 +31,92 @@ exports.registrarCorteDiario = async (req, res) => {
   }
 
   try {
-    // 📌 Definir fecha de inicio y fin del día en UTC
-    const fechaBase = new Date();
-    const fechaInicio = ajustarFechaMexico(fechaBase, true);
-    const fechaFin = ajustarFechaMexico(fechaBase, false);
+    // 📌 Obtener fecha actual en UTC
+    const { fechaInicio, fechaFin } = obtenerRangoDiaActual();
 
     console.log("📆 Fecha Inicio (UTC):", fechaInicio);
     console.log("📆 Fecha Fin (UTC):", fechaFin);
 
-    // 📌 Obtener pre-cortes del día
-    const preCortes = await PreCorteDiario.findAll({
+    // 📌 Validar si ya existe un corte para hoy
+    const corteExistente = await CorteDiario.findOne({
       where: {
         collector_id,
         fecha: { [Op.between]: [fechaInicio, fechaFin] },
       },
     });
 
-    if (preCortes.length === 0) {
-      return res.status(400).json({
-        error:
-          "No se puede generar un corte diario sin pre-cortes registrados.",
-      });
+    if (corteExistente) {
+      return res
+        .status(400)
+        .json({ error: "Ya existe un corte diario para hoy." });
     }
 
-    // 📌 Inicializar variables acumuladoras
-    let cobranzaTotal = 0,
-      deudoresCobrados = 0,
-      liquidacionesTotal = 0,
-      deudoresLiquidados = 0,
-      noPagosTotal = 0,
-      creditosTotal = 0,
-      creditosTotalMonto = 0,
-      primerosPagosTotal = 0,
-      primerosPagosMontos = 0,
-      nuevosDeudores = 0,
-      deudoresTotales = 0;
-
-    // 📌 Recorrer todos los pre-cortes y sumar los valores
-    preCortes.forEach((pre) => {
-      cobranzaTotal += parseFloat(pre.cobranza_total);
-      deudoresCobrados += pre.deudores_cobrados;
-      liquidacionesTotal += parseFloat(pre.liquidaciones_total);
-      deudoresLiquidados += pre.deudores_liquidados;
-      noPagosTotal += pre.no_pagos_total;
-      creditosTotal += pre.creditos_total;
-      creditosTotalMonto += parseFloat(pre.creditos_total_monto);
-      primerosPagosTotal += pre.primeros_pagos_total;
-      primerosPagosMontos += parseFloat(pre.primeros_pagos_montos);
-      nuevosDeudores += pre.nuevos_deudores;
-      deudoresTotales = pre.deudores_totales; // 📌 Tomamos el total de cualquier pre-corte
+    // 📌 Obtener todos los cobros del día
+    const cobros = await Cobro.findAll({
+      where: {
+        collector_id,
+        payment_date: { [Op.between]: [fechaInicio, fechaFin] },
+      },
     });
 
-    // 📌 Guardar el corte diario en UTC
+    // if (cobros.length === 0) {
+    //   return res.status(400).json({ error: "No hay cobros registrados hoy." });
+    // }
+
+    // 📌 Obtener IDs de deudores que pagaron
+    const deudoresCobros = Array.from(new Set(cobros.map((c) => c.debtor_id)));
+
+    // 📌 Obtener nuevos deudores (primeros pagos)
+    const nuevosDeudores = await deudoresController.obtenerNuevosDeudores(
+      collector_id,
+      fechaInicio,
+      fechaFin
+    );
+
+    // 📌 Primeros pagos monto y primeros pagos total con deudoresController
+    const primerosPagosMonto =
+      deudoresController.calcularPrimerosPagos(nuevosDeudores);
+    const deudoresPrimerosPagos = nuevosDeudores.map((d) => d.id);
+
+    // 📌 Unificamos la lista de los deudores que han pagado
+    const deudoresPagaron = Array.from(
+      new Set([...deudoresCobros, ...deudoresPrimerosPagos])
+    );
+
+    // 📌 Calcular montos y estadísticas
+    const cobranzaTotal = cobros.reduce(
+      (sum, c) => sum + parseFloat(c.monto),
+      0
+    );
+    const liquidacionesTotal = cobros
+      .filter((c) => c.payment_type === "liquidación")
+      .reduce((sum, c) => sum + parseFloat(c.amount), 0);
+    const deudoresLiquidados = cobros.filter(
+      (c) => c.payment_type === "liquidación"
+    ).length;
+
+    // 📌 Obtener total de deudores activos
+    const deudoresActivos = await Deudor.count({ where: { collector_id } });
+
+    // 📌 Calcular deudores que NO pagaron
+    const noPagosTotal = deudoresActivos - deudoresCobros.length;
+
+    // 📌 Registrar el corte diario
     const corteDiario = await CorteDiario.create({
       collector_id,
-      fecha: fechaFin, // 🔹 Se guarda en UTC
+      fecha: fechaFin, // 🔹 Guardamos la fecha del corte en UTC
       cobranza_total: cobranzaTotal,
-      deudores_cobrados: deudoresCobrados,
+      deudores_cobrados: deudoresPagaron.length,
       liquidaciones_total: liquidacionesTotal,
       deudores_liquidados: deudoresLiquidados,
       no_pagos_total: noPagosTotal,
-      creditos_total: creditosTotal,
-      creditos_total_monto: creditosTotalMonto,
-      primeros_pagos_total: primerosPagosTotal,
-      primeros_pagos_montos: primerosPagosMontos,
-      nuevos_deudores: nuevosDeudores,
-      deudores_totales: deudoresTotales,
+      creditos_total: nuevosDeudores.length,
+      creditos_total_monto:
+        deudoresController.calcularCreditosTotales(nuevosDeudores) || 0,
+      primeros_pagos_total: deudoresPrimerosPagos.length,
+      primeros_pagos_monto: primerosPagosMonto || 0,
+      nuevos_deudores: nuevosDeudores.length,
+      deudores_totales: deudoresActivos,
     });
 
     // 📌 Eliminar los pre-cortes después de hacer el corte definitivo

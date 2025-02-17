@@ -27,8 +27,8 @@ exports.registrarPreCorte = async (req, res) => {
     const fechaInicioHoy = ajustarFechaMexico(fechaBase, true);
     const fechaFin = ajustarFechaMexico(fechaBase, false);
 
-    console.log("Fecha Inicio del Día (UTC):", fechaInicioHoy);
-    console.log("Fecha Fin del Día (UTC):", fechaFin);
+    console.log("📆 Fecha Inicio del Día (UTC):", fechaInicioHoy);
+    console.log("📆 Fecha Fin del Día (UTC):", fechaFin);
 
     // **Obtener el último pre-corte del día**
     const ultimoPreCorte = await PreCorteDiario.findOne({
