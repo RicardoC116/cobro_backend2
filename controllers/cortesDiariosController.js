@@ -85,7 +85,7 @@ exports.registrarCorteDiario = async (req, res) => {
 
     // 📌 Calcular montos y estadísticas
     const cobranzaTotal = cobros.reduce(
-      (sum, c) => sum + parseFloat(c.monto),
+      (sum, c) => sum + parseFloat(c.amount),
       0
     );
     const liquidacionesTotal = cobros
