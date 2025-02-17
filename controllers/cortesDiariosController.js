@@ -120,7 +120,7 @@ exports.registrarCorteDiario = async (req, res) => {
     console.log(
       "Fecha de la base de datos:",
       moment
-        .utc(corte.fecha)
+        .utc(corteDiario.fecha)
         .tz("America/Mexico_City")
         .format("YYYY-MM-DD HH:mm:ss")
     );
