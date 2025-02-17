@@ -126,7 +126,7 @@ exports.registrarCorteDiario = async (req, res) => {
       moment
         .utc(corteDiario.fecha)
         .tz("America/Mexico_City")
-        .format("YYYY-MM-DD HH:mm:ss")
+        .format("YYYY-MM-DD")
     );
 
     // fecha: new Date().toISOString().split("T")[0],
