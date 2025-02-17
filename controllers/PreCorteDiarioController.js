@@ -119,7 +119,7 @@ exports.registrarPreCorte = async (req, res) => {
       collector_id,
       ventanilla_id,
       agente,
-      fecha: fechaActual.utc().format("YYYY-MM-DD HH:mm:ss"), // Guardar en UTC
+      fecha: fechaActual.format("YYYY-MM-DD HH:mm:ss"),
       cobranza_total: cobranzaTotal,
       deudores_cobrados: deudoresPagaron.length || 0,
       liquidaciones_total: liquidaciones.total || 0,
