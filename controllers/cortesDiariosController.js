@@ -112,6 +112,7 @@ exports.registrarCorteDiario = async (req, res) => {
       },
     });
 
+    console.log("✅ Corte Diario registrado exitosamente.", corteDiario);
     res.status(201).json({
       message: "Corte Diario registrado exitosamente.",
       corteDiario,
