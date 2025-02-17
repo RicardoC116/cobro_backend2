@@ -3,8 +3,20 @@ const moment = require("moment-timezone");
 const Cobro = require("../models/cobroModel");
 const Cobrador = require("../models/cobradorModel");
 const Deudor = require("../models/deudorModel");
+const moment = require("moment-timezone");
 
 const { Op } = require("sequelize");
+
+// Función para obtener el inicio y fin del día para una fecha dada en la zona horaria de México
+function obtenerRangoDiaPorFecha(fecha) {
+  const fechaMoment = moment.tz(fecha, "America/Mexico_City");
+  const inicio = fechaMoment
+    .clone()
+    .startOf("day")
+    .format("YYYY-MM-DD HH:mm:ss");
+  const fin = fechaMoment.clone().endOf("day").format("YYYY-MM-DD HH:mm:ss");
+  return { inicio, fin };
+}
 
 // 📌 Función para ajustar fechas a la zona horaria de México y convertirlas a UTC
 function ajustarFechaMexico(fecha, inicioDelDia = true) {
@@ -222,18 +234,16 @@ exports.obtenerCobrosPorDia = async (req, res) => {
       return res.status(400).json({ message: "Se requiere una fecha." });
     }
 
-    // 📌 Convertimos la fecha a UTC usando la zona horaria de México
-    const fechaBase = moment.tz(fecha, "America/Mexico_City").toDate();
-    const fechaInicio = ajustarFechaMexico(fechaBase, true);
-    const fechaFin = ajustarFechaMexico(fechaBase, false);
+    // Obtenemos el rango (inicio y fin) para la fecha dada en zona México
+    const { inicio, fin } = obtenerRangoDiaPorFecha(fecha);
 
-    console.log("Buscando cobros entre:", fechaInicio, "y", fechaFin);
+    console.log("Buscando cobros entre:", inicio, "y", fin);
 
-    // 📌 Consulta en la base de datos con el rango de fechas en UTC
+    // Consulta a la base de datos con el rango obtenido
     const cobros = await Cobro.findAll({
       where: {
         payment_date: {
-          [Op.between]: [fechaInicio, fechaFin],
+          [Op.between]: [inicio, fin],
         },
       },
     });

@@ -1,3 +1,5 @@
+// cortesDiariosController.js
+
 const CorteDiario = require("../models/corteDiarioModel");
 const deudoresController = require("./deudoresControllers");
 const Cobro = require("../models/cobroModel");
@@ -8,9 +10,12 @@ const moment = require("moment-timezone");
 
 // 📌 Función para obtener la fecha de inicio y fin del día en la zona horaria de México
 function obtenerRangoDiaActual() {
-  const ahora = new Date();
-  const fechaInicio = new Date(ahora.setHours(0, 0, 0, 0)).toISOString();
-  const fechaFin = new Date(ahora.setHours(23, 59, 59, 999)).toISOString();
+  const ahora = moment().tz("America/Mexico_City");
+  const fechaInicio = ahora
+    .clone()
+    .startOf("day")
+    .format("YYYY-MM-DD HH:mm:ss");
+  const fechaFin = ahora.clone().endOf("day").format("YYYY-MM-DD HH:mm:ss");
   return { fechaInicio, fechaFin };
 }
 
@@ -83,7 +88,7 @@ exports.registrarCorteDiario = async (req, res) => {
     // 📌 Registrar el corte diario
     const corteDiario = await CorteDiario.create({
       collector_id,
-      fecha: new Date().toISOString(),
+      fecha: moment().tz("America/Mexico_City").format("YYYY-MM-DD"),
       cobranza_total: cobranzaTotal,
       deudores_cobrados: deudoresCobros.length,
       liquidaciones_total: liquidacionesTotal,
@@ -108,7 +113,7 @@ exports.registrarCorteDiario = async (req, res) => {
     });
 
     res.status(201).json({
-      message: "✅ Corte Diario registrado exitosamente.",
+      message: "Corte Diario registrado exitosamente.",
       corteDiario,
     });
   } catch (error) {
@@ -130,9 +135,17 @@ exports.obtenerCortesDiarios = async (req, res) => {
     });
 
     // Convertir la fecha de UTC a la zona horaria de México antes de enviarla
+    // const cortesAjustados = cortesDiarios.map((corte) => ({
+    //   ...corte.toJSON(),
+    //   fecha: moment.utc(corte.fecha).tz("America/Mexico_City").format(),
+    // }));
+
     const cortesAjustados = cortesDiarios.map((corte) => ({
       ...corte.toJSON(),
-      fecha: moment.utc(corte.fecha).tz("America/Mexico_City").format(),
+      fecha: moment
+        .utc(corte.fecha)
+        .tz("America/Mexico_City")
+        .format("YYYY-MM-DD"),
     }));
 
     res.json(cortesAjustados);
@@ -145,17 +158,20 @@ exports.obtenerCortesDiarios = async (req, res) => {
 // 📌 Obtener cortes por cobrador y convertir fechas
 exports.obtenerCortesPorCobrador = async (req, res) => {
   try {
-    const { id } = req.params;
-    const cortes = await CorteDiario.findAll({ where: { collector_id: id } });
+    const { id } = req.params; // Ajustar el nombre del parámetro
+    const Corte = await CorteDiario.findAll({
+      where: { collector_id: id }, // Usar "id" correctamente aquí
+    });
 
-    const cortesConvertidos = cortes.map((corte) => ({
+    // Convertir la fecha de UTC a la zona horaria de México antes de enviarla
+    const cortesAjustados = Corte.map((corte) => ({
       ...corte.toJSON(),
       fecha: moment.utc(corte.fecha).tz("America/Mexico_City").format(),
     }));
 
-    res.json(cortesConvertidos);
+    res.json(cortesAjustados);
   } catch (error) {
-    console.error("❌ Error al obtener los cortes por cobrador:", error);
+    console.error("Error al obtener los cortes por cobrador:", error);
     res
       .status(500)
       .json({ message: "Error al obtener los cobros por cobrador." });
