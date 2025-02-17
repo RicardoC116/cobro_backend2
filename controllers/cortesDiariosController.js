@@ -88,7 +88,7 @@ exports.registrarCorteDiario = async (req, res) => {
     // 📌 Registrar el corte diario
     const corteDiario = await CorteDiario.create({
       collector_id,
-      fecha: moment().tz("America/Mexico_City").utc().format("YYYY-MM-DD"), // Convertir a UTC antes de guardar
+      fecha: moment().tz().utc().format("YYYY-MM-DD"), // Convertir a UTC antes de guardar
       cobranza_total: cobranzaTotal,
       deudores_cobrados: deudoresCobros.length,
       liquidaciones_total: liquidacionesTotal,
