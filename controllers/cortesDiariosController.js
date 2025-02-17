@@ -88,7 +88,7 @@ exports.registrarCorteDiario = async (req, res) => {
     // 📌 Registrar el corte diario
     const corteDiario = await CorteDiario.create({
       collector_id,
-      fecha: moment().tz("America/Mexico_City").format("YYYY-MM-DD"),
+      fecha: moment().tz("America/Mexico_City").format("YYYY-MM-DD HH:mm:ss"), // Guardar también la hora
       cobranza_total: cobranzaTotal,
       deudores_cobrados: deudoresCobros.length,
       liquidaciones_total: liquidacionesTotal,
@@ -112,7 +112,7 @@ exports.registrarCorteDiario = async (req, res) => {
       },
     });
 
-    console.log("✅ Corte Diario registrado exitosamente.", corteDiario);
+    console.log("✅ Corte Diario registrado exitosamente." + corteDiario);
     res.status(201).json({
       message: "Corte Diario registrado exitosamente.",
       corteDiario,
@@ -167,7 +167,10 @@ exports.obtenerCortesPorCobrador = async (req, res) => {
     // Convertir la fecha de UTC a la zona horaria de México antes de enviarla
     const cortesAjustados = Corte.map((corte) => ({
       ...corte.toJSON(),
-      fecha: moment.utc(corte.fecha).tz("America/Mexico_City").format(),
+      fecha: moment
+        .utc(corte.fecha)
+        .tz("America/Mexico_City")
+        .format("YYYY-MM-DD HH:mm:ss"), // Ajustar también la hora
     }));
 
     res.json(cortesAjustados);
