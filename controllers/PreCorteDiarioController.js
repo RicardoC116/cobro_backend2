@@ -1,26 +1,20 @@
-// preCorteDiarioController.js
-
 const moment = require("moment-timezone");
+const { Op } = require("sequelize");
 const PreCorteDiario = require("../models/PreCorteDiarioModel");
 const deudoresController = require("./deudoresControllers");
 const cobrosController = require("./cobrosController");
-const { Op } = require("sequelize");
 const CorteDiario = require("../models/corteDiarioModel");
 const Cobrador = require("../models/cobradorModel");
 const Deudor = require("../models/deudorModel");
 
-// Función para obtener el inicio y fin del día en la zona horaria de México
-function obtenerRangoDiaActual() {
+// Función para obtener el inicio y fin del día en hora local (America/Mexico_City)
+function obtenerRangoDiaActualLocal() {
   const ahora = moment().tz("America/Mexico_City");
-  const fechaInicio = ahora
-    .clone()
-    .startOf("day")
-    .format("YYYY-MM-DD HH:mm:ss");
-  const fechaFin = ahora.clone().endOf("day").format("YYYY-MM-DD HH:mm:ss");
-  return { fechaInicio, fechaFin };
+  const fechaInicioLocal = ahora.clone().startOf("day"); // objeto moment
+  const fechaFinLocal = ahora.clone().endOf("day"); // objeto moment
+  return { fechaInicioLocal, fechaFinLocal };
 }
 
-// Método para registrar el pre-corte
 exports.registrarPreCorte = async (req, res) => {
   const { collector_id, ventanilla_id, agente } = req.body;
 
@@ -31,76 +25,88 @@ exports.registrarPreCorte = async (req, res) => {
   }
 
   try {
-    // Obtener el rango del día (para filtrar pre-cortes del día actual)
-    const { fechaInicio } = obtenerRangoDiaActual();
-    // Tomamos la hora actual (fin efectivo de consulta)
-    const fechaActual = moment().tz("America/Mexico_City");
+    // 1. Obtenemos el rango del día en hora local
+    const { fechaInicioLocal, fechaFinLocal } = obtenerRangoDiaActualLocal();
 
-    console.log("📆 Inicio del Día:", fechaInicio);
+    // 2. Convertimos ese rango a UTC para usar en las consultas (ya que la BD almacena en UTC)
+    const fechaInicioUTC = fechaInicioLocal
+      .clone()
+      .utc()
+      .format("YYYY-MM-DD HH:mm:ss");
+    // Usamos el momento actual en hora local para definir el límite actual, y luego lo convertimos a UTC:
+    const ahoraLocal = moment().tz("America/Mexico_City");
+    const fechaActualUTC = ahoraLocal
+      .clone()
+      .utc()
+      .format("YYYY-MM-DD HH:mm:ss");
+
     console.log(
-      "📆 Momento Actual:",
-      fechaActual.format("YYYY-MM-DD HH:mm:ss")
+      "📆 Rango Local: Inicio:",
+      fechaInicioLocal.format("YYYY-MM-DD HH:mm:ss"),
+      "Fin:",
+      fechaFinLocal.format("YYYY-MM-DD HH:mm:ss")
+    );
+    console.log(
+      "📆 Rango UTC: Inicio:",
+      fechaInicioUTC,
+      "Actual:",
+      fechaActualUTC
     );
 
-    // Buscar el último pre-corte del día
+    // 3. Buscar el último pre-corte del día usando el rango UTC
     const ultimoPreCorte = await PreCorteDiario.findOne({
       where: {
         collector_id,
         fecha: {
-          [Op.between]: [
-            fechaInicio,
-            fechaActual.format("YYYY-MM-DD HH:mm:ss"),
-          ],
+          [Op.between]: [fechaInicioUTC, fechaActualUTC],
         },
       },
       order: [["fecha", "DESC"]],
     });
 
-    let fechaConsulta;
+    let fechaConsultaUTC;
     if (ultimoPreCorte) {
-      // Usamos la fecha del último pre-corte, opcionalmente le sumamos 1 segundo para evitar solapamientos
-      fechaConsulta = moment(ultimoPreCorte.fecha)
+      // Convertimos la fecha del último pre-corte a momento local, le sumamos 1 segundo, y luego la convertimos a UTC
+      fechaConsultaUTC = moment(ultimoPreCorte.fecha)
         .tz("America/Mexico_City")
-        .add(1, "second");
+        .add(1, "second")
+        .utc()
+        .format("YYYY-MM-DD HH:mm:ss");
       console.log(
-        "Último Pre-Corte encontrado. Se consultarán datos desde:",
-        fechaConsulta.format("YYYY-MM-DD HH:mm:ss")
+        "Último Pre-Corte encontrado. Se consultarán datos desde (UTC):",
+        fechaConsultaUTC
       );
     } else {
-      // Si no hay pre-corte hoy, usamos el inicio del día
-      fechaConsulta = moment(fechaInicio).tz("America/Mexico_City");
+      // Si no hay pre-corte hoy, usamos el inicio del día en UTC
+      fechaConsultaUTC = fechaInicioUTC;
       console.log(
-        "No se encontró pre-corte hoy. Se consultarán datos desde el inicio del día:",
-        fechaConsulta.format("YYYY-MM-DD HH:mm:ss")
+        "No se encontró pre-corte hoy. Se consultarán datos desde (UTC) el inicio del día:",
+        fechaConsultaUTC
       );
     }
 
-    // Ahora, consultamos los cobros y demás datos desde fechaConsulta hasta el momento actual
+    // 4. Consultar cobros y deudores usando los límites en UTC
     const cobros = await cobrosController.obtenerCobrosEnRango(
       collector_id,
-      fechaConsulta.format("YYYY-MM-DD HH:mm:ss"),
-      fechaActual.format("YYYY-MM-DD HH:mm:ss")
+      fechaConsultaUTC,
+      fechaActualUTC
     );
 
-    // Deudores que pagaron (a partir de los cobros)
     const deudoresCobros = Array.from(new Set(cobros.map((c) => c.debtor_id)));
 
-    // Obtener nuevos deudores desde fechaConsulta hasta el momento actual
     const nuevosDeudores = await deudoresController.obtenerNuevosDeudores(
       collector_id,
-      fechaConsulta.format("YYYY-MM-DD HH:mm:ss"),
-      fechaActual.format("YYYY-MM-DD HH:mm:ss")
+      fechaConsultaUTC,
+      fechaActualUTC
     );
     const primerosPagosMontos =
       deudoresController.calcularPrimerosPagos(nuevosDeudores);
     const deudoresPrimerosPagos = nuevosDeudores.map((d) => d.id);
 
-    // Unificar deudores que pagaron
     const deudoresPagaron = Array.from(
       new Set([...deudoresCobros, ...deudoresPrimerosPagos])
     );
 
-    // Calcular estadísticas
     const cobranzaTotal = cobrosController.calcularCobranzaTotal(cobros) || 0;
     const liquidaciones = cobrosController.calcularLiquidaciones(cobros) || {
       total: 0,
@@ -114,12 +120,13 @@ exports.registrarPreCorte = async (req, res) => {
         deudoresPagaron
       ) || 0;
 
-    // Guardar el pre-corte usando la hora actual (fechaActual) como momento de registro
+    // 5. Guardar el pre-corte.
+    // Como queremos guardar la fecha con hora, usamos el valor actual convertido a UTC.
     const preCorteData = {
       collector_id,
       ventanilla_id,
       agente,
-      fecha: fechaActual.format("YYYY-MM-DD HH:mm:ss"),
+      fecha: fechaActualUTC, // Se guarda en UTC
       cobranza_total: cobranzaTotal,
       deudores_cobrados: deudoresPagaron.length || 0,
       liquidaciones_total: liquidaciones.total || 0,
