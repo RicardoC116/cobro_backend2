@@ -6,11 +6,10 @@ const { Op } = require("sequelize");
 const CorteDiario = require("../models/corteDiarioModel");
 const Cobrador = require("../models/cobradorModel");
 
-// Función para ajustar fecha a zona horaria de México y luego convertirla a UTC
-function ajustarFechaMexico(fecha, inicioDelDia = true) {
+function obtenerFechaUTC(inicioDelDia = true) {
   return inicioDelDia
-    ? moment.tz(fecha, "America/Mexico_City").startOf("day").utc().format()
-    : moment.tz(fecha, "America/Mexico_City").endOf("day").utc().format();
+    ? moment.utc().startOf("day").format()
+    : moment.utc().endOf("day").format();
 }
 
 exports.registrarPreCorte = async (req, res) => {
@@ -23,9 +22,8 @@ exports.registrarPreCorte = async (req, res) => {
   }
 
   try {
-    const fechaBase = fecha ? new Date(fecha) : new Date();
-    const fechaInicioHoy = ajustarFechaMexico(fechaBase, true);
-    const fechaFin = ajustarFechaMexico(fechaBase, false);
+    const fechaInicioHoy = obtenerFechaUTC(true);
+    const fechaFin = obtenerFechaUTC(false);
 
     console.log("📆 Fecha Inicio del Día (UTC):", fechaInicioHoy);
     console.log("📆 Fecha Fin del Día (UTC):", fechaFin);

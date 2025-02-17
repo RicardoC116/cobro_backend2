@@ -8,16 +8,8 @@ const PreCorteDiario = require("../models/PreCorteDiarioModel");
 
 // 📌 Función para obtener la fecha de inicio y fin del día en la zona horaria de México
 function obtenerRangoDiaActual() {
-  const fechaInicio = moment
-    .tz("America/Mexico_City")
-    .startOf("day")
-    .utc()
-    .format();
-  const fechaFin = moment()
-    .tz("America/Mexico_City")
-    .endOf("day")
-    .utc()
-    .format();
+  const fechaInicio = moment.utc().startOf("day").format();
+  const fechaFin = moment.utc().endOf("day").format();
   return { fechaInicio, fechaFin };
 }
 
