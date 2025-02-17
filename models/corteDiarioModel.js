@@ -16,7 +16,7 @@ const CorteDiario = db.define("CorteDiario", {
   },
 
   fecha: {
-    type: DataTypes.DATEONLY,
+    type: DataTypes.DATE,
     allowNull: false,
   },
 
