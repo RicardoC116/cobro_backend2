@@ -1,4 +1,3 @@
-const moment = require("moment-timezone");
 const CorteDiario = require("../models/corteDiarioModel");
 const deudoresController = require("./deudoresControllers");
 const Cobro = require("../models/cobroModel");
@@ -8,8 +7,9 @@ const PreCorteDiario = require("../models/PreCorteDiarioModel");
 
 // 📌 Función para obtener la fecha de inicio y fin del día en la zona horaria de México
 function obtenerRangoDiaActual() {
-  const fechaInicio = moment.utc().startOf("day").format();
-  const fechaFin = moment.utc().endOf("day").format();
+  const ahora = new Date();
+  const fechaInicio = new Date(ahora.setHours(0, 0, 0, 0)).toISOString();
+  const fechaFin = new Date(ahora.setHours(23, 59, 59, 999)).toISOString();
   return { fechaInicio, fechaFin };
 }
 
@@ -23,11 +23,11 @@ exports.registrarCorteDiario = async (req, res) => {
   }
 
   try {
-    // 📌 Obtener fecha actual en UTC
+    // 📌 Obtener fecha actual en la zona horaria configurada (México)
     const { fechaInicio, fechaFin } = obtenerRangoDiaActual();
 
-    console.log("📆 Fecha Inicio (UTC):", fechaInicio);
-    console.log("📆 Fecha Fin (UTC):", fechaFin);
+    console.log("📆 Fecha Inicio:", fechaInicio);
+    console.log("📆 Fecha Fin:", fechaFin);
 
     // 📌 Validar si ya existe un corte para hoy
     const corteExistente = await CorteDiario.findOne({
@@ -51,10 +51,6 @@ exports.registrarCorteDiario = async (req, res) => {
       },
     });
 
-    // if (cobros.length === 0) {
-    //   return res.status(400).json({ error: "No hay cobros registrados hoy." });
-    // }
-
     // 📌 Obtener IDs de deudores que pagaron
     const deudoresCobros = Array.from(new Set(cobros.map((c) => c.debtor_id)));
 
@@ -63,16 +59,6 @@ exports.registrarCorteDiario = async (req, res) => {
       collector_id,
       fechaInicio,
       fechaFin
-    );
-
-    // 📌 Primeros pagos monto y primeros pagos total con deudoresController
-    const primerosPagosMonto =
-      deudoresController.calcularPrimerosPagos(nuevosDeudores);
-    const deudoresPrimerosPagos = nuevosDeudores.map((d) => d.id);
-
-    // 📌 Unificamos la lista de los deudores que han pagado
-    const deudoresPagaron = Array.from(
-      new Set([...deudoresCobros, ...deudoresPrimerosPagos])
     );
 
     // 📌 Calcular montos y estadísticas
@@ -96,22 +82,23 @@ exports.registrarCorteDiario = async (req, res) => {
     // 📌 Registrar el corte diario
     const corteDiario = await CorteDiario.create({
       collector_id,
-      fecha: fechaFin, // 🔹 Guardamos la fecha del corte en UTC
+      fecha: new Date().toISOString(),
       cobranza_total: cobranzaTotal,
-      deudores_cobrados: deudoresPagaron.length,
+      deudores_cobrados: deudoresCobros.length,
       liquidaciones_total: liquidacionesTotal,
       deudores_liquidados: deudoresLiquidados,
       no_pagos_total: noPagosTotal,
       creditos_total: nuevosDeudores.length,
       creditos_total_monto:
         deudoresController.calcularCreditosTotales(nuevosDeudores) || 0,
-      primeros_pagos_total: deudoresPrimerosPagos.length,
-      primeros_pagos_monto: primerosPagosMonto || 0,
+      primeros_pagos_total: nuevosDeudores.length,
+      primeros_pagos_monto:
+        deudoresController.calcularPrimerosPagos(nuevosDeudores) || 0,
       nuevos_deudores: nuevosDeudores.length,
       deudores_totales: deudoresActivos,
     });
 
-    // 📌 Eliminar los pre-cortes después de hacer el corte definitivo
+    // 📌 Eliminar pre-cortes después de hacer el corte definitivo
     await PreCorteDiario.destroy({
       where: {
         collector_id,

@@ -1,3 +1,5 @@
+// preCorteDiarioController.js
+
 const moment = require("moment-timezone");
 const PreCorteDiario = require("../models/PreCorteDiarioModel");
 const deudoresController = require("./deudoresControllers");
