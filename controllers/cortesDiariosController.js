@@ -1,5 +1,3 @@
-// cortesDiariosController.js
-
 const CorteDiario = require("../models/corteDiarioModel");
 const deudoresController = require("./deudoresControllers");
 const Cobro = require("../models/cobroModel");
@@ -8,66 +6,78 @@ const { Op } = require("sequelize");
 const PreCorteDiario = require("../models/PreCorteDiarioModel");
 const moment = require("moment-timezone");
 
-// 📌 Función para obtener la fecha de inicio y fin del día en la zona horaria de México
-function obtenerRangoDiaActual() {
+// Función para obtener el inicio y fin del día en hora local (America/Mexico_City)
+function obtenerRangoDiaActualLocal() {
   const ahora = moment().tz("America/Mexico_City");
-  const fechaInicio = ahora
+  const fechaInicioLocal = ahora
     .clone()
     .startOf("day")
     .format("YYYY-MM-DD HH:mm:ss");
-  const fechaFin = ahora.clone().endOf("day").format("YYYY-MM-DD HH:mm:ss");
-  return { fechaInicio, fechaFin };
+  const fechaFinLocal = ahora
+    .clone()
+    .endOf("day")
+    .format("YYYY-MM-DD HH:mm:ss");
+  return { fechaInicioLocal, fechaFinLocal };
 }
 
 exports.registrarCorteDiario = async (req, res) => {
   const { collector_id } = req.body;
-
   if (!collector_id) {
     return res
       .status(400)
       .json({ error: "El ID del cobrador es obligatorio." });
   }
-
   try {
-    // 📌 Obtener fecha actual en la zona horaria configurada (México)
-    const { fechaInicio, fechaFin } = obtenerRangoDiaActual();
+    // 1. Obtener el rango del día en hora local
+    const { fechaInicioLocal, fechaFinLocal } = obtenerRangoDiaActualLocal();
+    console.log(
+      "📆 Rango Local: Inicio:",
+      fechaInicioLocal,
+      "Fin:",
+      fechaFinLocal
+    );
 
-    console.log("📆 Fecha Inicio:", fechaInicio);
-    console.log("📆 Fecha Fin:", fechaFin);
+    // 2. Convertir esos límites a UTC para las consultas
+    const fechaInicioUTC = moment
+      .tz(fechaInicioLocal, "America/Mexico_City")
+      .utc()
+      .format("YYYY-MM-DD HH:mm:ss");
+    const fechaFinUTC = moment
+      .tz(fechaFinLocal, "America/Mexico_City")
+      .utc()
+      .format("YYYY-MM-DD HH:mm:ss");
+    console.log("📆 Rango UTC: Inicio:", fechaInicioUTC, "Fin:", fechaFinUTC);
 
-    // 📌 Validar si ya existe un corte para hoy
+    // 3. Verificar si ya existe un corte para hoy (usamos los límites en UTC)
     const corteExistente = await CorteDiario.findOne({
       where: {
         collector_id,
-        fecha: { [Op.between]: [fechaInicio, fechaFin] },
+        fecha: { [Op.between]: [fechaInicioUTC, fechaFinUTC] },
       },
     });
-
     if (corteExistente) {
       return res
         .status(400)
         .json({ error: "Ya existe un corte diario para hoy." });
     }
 
-    // 📌 Obtener todos los cobros del día
+    // 4. Obtener todos los cobros del día, usando límites UTC
     const cobros = await Cobro.findAll({
       where: {
         collector_id,
-        payment_date: { [Op.between]: [fechaInicio, fechaFin] },
+        payment_date: { [Op.between]: [fechaInicioUTC, fechaFinUTC] },
       },
     });
-
-    // 📌 Obtener IDs de deudores que pagaron
     const deudoresCobros = Array.from(new Set(cobros.map((c) => c.debtor_id)));
 
-    // 📌 Obtener nuevos deudores (primeros pagos)
+    // 5. Obtener nuevos deudores (primeros pagos) dentro del rango UTC
     const nuevosDeudores = await deudoresController.obtenerNuevosDeudores(
       collector_id,
-      fechaInicio,
-      fechaFin
+      fechaInicioUTC,
+      fechaFinUTC
     );
 
-    // 📌 Calcular montos y estadísticas
+    // 6. Calcular totales y estadísticas
     const cobranzaTotal = cobros.reduce(
       (sum, c) => sum + parseFloat(c.amount),
       0
@@ -78,25 +88,25 @@ exports.registrarCorteDiario = async (req, res) => {
     const deudoresLiquidados = cobros.filter(
       (c) => c.payment_type === "liquidación"
     ).length;
-
-    // 📌 Obtener total de deudores activos
     const deudoresActivos = await Deudor.count({ where: { collector_id } });
-
-    // 📌 Calcular deudores que NO pagaron
     const noPagosTotal = deudoresActivos - deudoresCobros.length;
 
-    // 📌 Registrar el corte diario
+    // 7. Definir "ahora" en hora local y su equivalente UTC para el corte
+    const ahoraLocal = moment().tz("America/Mexico_City");
+    const fechaActualUTC = ahoraLocal
+      .clone()
+      .utc()
+      .format("YYYY-MM-DD HH:mm:ss");
+
+    // 8. Registrar el corte diario usando la hora actual en UTC
     const corteDiario = await CorteDiario.create({
       collector_id,
-      fecha: moment()
-        .tz("America/Mexico_City")
-        .utc()
-        .format("YYYY-MM-DD HH:mm:ss"), // Convertir a UTC antes de guardar
+      fecha: fechaActualUTC,
       cobranza_total: cobranzaTotal,
       deudores_cobrados: deudoresCobros.length,
       liquidaciones_total: liquidacionesTotal,
       deudores_liquidados: deudoresLiquidados,
-      no_pagos_total: noPagosTotal,
+      no_pagoss_total: noPagosTotal, // Nota: asegúrate de que el nombre del campo coincida con el modelo
       creditos_total: nuevosDeudores.length,
       creditos_total_monto:
         deudoresController.calcularCreditosTotales(nuevosDeudores) || 0,
@@ -107,30 +117,16 @@ exports.registrarCorteDiario = async (req, res) => {
       deudores_totales: deudoresActivos,
     });
 
-    // 📌 Eliminar pre-cortes después de hacer el corte definitivo
+    // 9. Eliminar pre-cortes del día (usando límites UTC)
     await PreCorteDiario.destroy({
       where: {
         collector_id,
-        fecha: { [Op.between]: [fechaInicio, fechaFin] },
+        fecha: { [Op.between]: [fechaInicioUTC, fechaFinUTC] },
       },
     });
 
-    console.log(
-      "Fecha antes de guardar:",
-      moment().tz("America/Mexico_City").format("YYYY-MM-DD")
-    );
-
-    console.log(
-      "Fecha de la base de datos:",
-      moment
-        .utc(corteDiario.fecha)
-        .tz("America/Mexico_City")
-        .format("YYYY-MM-DD")
-    );
-
-    // fecha: new Date().toISOString().split("T")[0],
-
     console.log("📅 Fecha guardada en corteDiario:", corteDiario.fecha);
+
     console.log("✅ Corte Diario registrado exitosamente.", corteDiario);
     res.status(201).json({
       message: "Corte Diario registrado exitosamente.",
@@ -145,7 +141,6 @@ exports.registrarCorteDiario = async (req, res) => {
   }
 };
 
-// 📌 Obtener los cortes diarios registrados y convertir la fecha de UTC a `America/Mexico_City`
 exports.obtenerCortesDiarios = async (req, res) => {
   try {
     const { id } = req.params;
@@ -153,21 +148,14 @@ exports.obtenerCortesDiarios = async (req, res) => {
       where: { collector_id: id },
       order: [["fecha", "DESC"]],
     });
-
-    // Convertir la fecha de UTC a la zona horaria de México antes de enviarla
-    // const cortesAjustados = cortesDiarios.map((corte) => ({
-    //   ...corte.toJSON(),
-    //   fecha: moment.utc(corte.fecha).tz("America/Mexico_City").format(),
-    // }));
-
+    // Al enviar, convertimos de UTC a la zona local para mostrar
     const cortesAjustados = cortesDiarios.map((corte) => ({
       ...corte.toJSON(),
       fecha: moment
         .utc(corte.fecha)
         .tz("America/Mexico_City")
-        .format("YYYY-MM-DD"),
+        .format("YYYY-MM-DD HH:mm:ss"),
     }));
-
     res.json(cortesAjustados);
   } catch (error) {
     console.error("❌ Error al obtener los cortes diarios:", error);
@@ -175,23 +163,19 @@ exports.obtenerCortesDiarios = async (req, res) => {
   }
 };
 
-// 📌 Obtener cortes por cobrador y convertir fechas
 exports.obtenerCortesPorCobrador = async (req, res) => {
   try {
-    const { id } = req.params; // Ajustar el nombre del parámetro
-    const Corte = await CorteDiario.findAll({
-      where: { collector_id: id }, // Usar "id" correctamente aquí
+    const { id } = req.params;
+    const cortes = await CorteDiario.findAll({
+      where: { collector_id: id },
     });
-
-    // Convertir la fecha de UTC a la zona horaria de México antes de enviarla
-    const cortesAjustados = Corte.map((corte) => ({
+    const cortesAjustados = cortes.map((corte) => ({
       ...corte.toJSON(),
       fecha: moment
         .utc(corte.fecha)
         .tz("America/Mexico_City")
-        .format("YYYY-MM-DD HH:mm:ss"), // Ajustar también la hora
+        .format("YYYY-MM-DD HH:mm:ss"),
     }));
-
     res.json(cortesAjustados);
   } catch (error) {
     console.error("Error al obtener los cortes por cobrador:", error);
@@ -201,7 +185,6 @@ exports.obtenerCortesPorCobrador = async (req, res) => {
   }
 };
 
-// 📌 Eliminar un corte
 exports.deleteCorteDiario = async (req, res) => {
   const { id } = req.params;
   try {
