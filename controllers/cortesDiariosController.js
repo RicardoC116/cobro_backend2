@@ -106,7 +106,7 @@ exports.registrarCorteDiario = async (req, res) => {
       deudores_cobrados: deudoresCobros.length,
       liquidaciones_total: liquidacionesTotal,
       deudores_liquidados: deudoresLiquidados,
-      no_pagoss_total: noPagosTotal, // Nota: asegúrate de que el nombre del campo coincida con el modelo
+      no_pagos_total: noPagosTotal,
       creditos_total: nuevosDeudores.length,
       creditos_total_monto:
         deudoresController.calcularCreditosTotales(nuevosDeudores) || 0,
