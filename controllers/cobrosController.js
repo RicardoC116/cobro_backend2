@@ -226,6 +226,44 @@ exports.obtenerCobros = async (req, res) => {
   }
 };
 
+exports.obtenerCobrosPorDiaEId = async (req, res) => {
+  try {
+    const { fecha, collector_id } = req.query;
+    if (!fecha || !collector_id) {
+      return res
+        .status(400)
+        .json({ message: "Se requiere una fecha y el ID del cobrador." });
+    }
+
+    // Obtenemos el rango (inicio y fin) para la fecha dada en zona México
+    const { inicio, fin } = obtenerRangoDiaPorFecha(fecha);
+
+    console.log(
+      "Buscando cobros entre:",
+      inicio,
+      "y",
+      fin,
+      "para collector_id:",
+      collector_id
+    );
+
+    // Consulta a la base de datos con el rango obtenido y filtrando por collector_id
+    const cobros = await Cobro.findAll({
+      where: {
+        collector_id,
+        payment_date: {
+          [Op.between]: [inicio, fin],
+        },
+      },
+    });
+
+    res.json({ cobros });
+  } catch (error) {
+    console.error("Error al obtener los cobros:", error);
+    res.status(500).json({ message: "Error al obtener los cobros." });
+  }
+};
+
 exports.obtenerCobrosPorDia = async (req, res) => {
   try {
     const { fecha } = req.query;

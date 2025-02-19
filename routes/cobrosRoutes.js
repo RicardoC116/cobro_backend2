@@ -10,6 +10,7 @@ const {
   eliminarCobro,
   modificarCobro,
   obtenerCobrosPorDia,
+  obtenerCobrosPorDiaEId,
 } = require("../controllers/cobrosController");
 
 // Ruta para obtener todos los cobros
@@ -17,6 +18,9 @@ router.get("/", obtenerCobros);
 
 // Ruta para registrar un cobro de un deudor
 router.post("/registrar", registrarCobro);
+
+// Ruta para obtener los cobros por rango de fechas y cobrador
+router.get("/diaId", obtenerCobrosPorDiaEId);
 
 // Ruta para obtener los cobros por dia
 router.get("/dia", obtenerCobrosPorDia);
