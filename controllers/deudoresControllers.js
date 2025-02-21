@@ -311,6 +311,11 @@ exports.calcularPrimerosPagos = (nuevosDeudores) => {
   const deudoresConPago = nuevosDeudores.filter(
     (deudor) => deudor.first_payment
   );
+  console.log(
+    "📌 Deudores con primeros pagos:",
+    deudoresConPago.length,
+    deudoresConPago
+  );
 
   return deudoresConPago.reduce(
     (sum, deudor) => sum + parseFloat(deudor.first_payment),

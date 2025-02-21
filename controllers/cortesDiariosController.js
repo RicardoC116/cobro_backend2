@@ -82,6 +82,9 @@ exports.registrarCorteDiario = async (req, res) => {
       (sum, c) => sum + parseFloat(c.amount),
       0
     );
+
+    const primerosPagosMontos = nuevosDeudores.map((d) => d.first_payment);
+
     const liquidacionesTotal = cobros
       .filter((c) => c.payment_type === "liquidación")
       .reduce((sum, c) => sum + parseFloat(c.amount), 0);
@@ -111,8 +114,7 @@ exports.registrarCorteDiario = async (req, res) => {
       creditos_total_monto:
         deudoresController.calcularCreditosTotales(nuevosDeudores) || 0,
       primeros_pagos_total: nuevosDeudores.length,
-      primeros_pagos_monto:
-        deudoresController.calcularPrimerosPagos(nuevosDeudores) || 0,
+      primeros_pagos_monto: primerosPagosMontos || 0,
       nuevos_deudores: nuevosDeudores.length,
       deudores_totales: deudoresActivos,
     });
