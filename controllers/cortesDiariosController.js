@@ -114,11 +114,11 @@ exports.registrarCorteDiario = async (req, res) => {
       creditos_total_monto:
         deudoresController.calcularCreditosTotales(nuevosDeudores) || 0,
       primeros_pagos_total: nuevosDeudores.length,
-      primeros_pagos_monto: primerosPagosMontos || 0,
+      primeros_pagos_monto: primerosPagosMontos.reduce((a, b) => a + b, 0),
+      // primeros_pagos_monto: primerosPagosMontos || 0,
       nuevos_deudores: nuevosDeudores.length,
       deudores_totales: deudoresActivos,
     });
-    
 
     // 9. Eliminar pre-cortes del día (usando límites UTC)
     await PreCorteDiario.destroy({
