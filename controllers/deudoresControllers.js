@@ -308,8 +308,12 @@ exports.obtenerNuevosDeudores = async (collector_id, fechaInicio, fechaFin) => {
 };
 
 exports.calcularPrimerosPagos = (nuevosDeudores) => {
-  return nuevosDeudores.reduce(
-    (sum, deudor) => sum + parseFloat(deudor.first_payment || 0),
+  const deudoresConPago = nuevosDeudores.filter(
+    (deudor) => deudor.first_payment
+  );
+
+  return deudoresConPago.reduce(
+    (sum, deudor) => sum + parseFloat(deudor.first_payment),
     0
   );
 };
