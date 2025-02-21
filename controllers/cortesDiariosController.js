@@ -118,6 +118,7 @@ exports.registrarCorteDiario = async (req, res) => {
       nuevos_deudores: nuevosDeudores.length,
       deudores_totales: deudoresActivos,
     });
+    
 
     // 9. Eliminar pre-cortes del día (usando límites UTC)
     await PreCorteDiario.destroy({
