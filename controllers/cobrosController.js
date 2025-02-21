@@ -17,11 +17,19 @@ function obtenerRangoDiaPorFecha(fecha) {
   return { inicio, fin };
 }
 
-// 📌 Función para ajustar fechas a la zona horaria de México y convertirlas a UTC
-function ajustarFechaMexico(fecha, inicioDelDia = true) {
-  return inicioDelDia
-    ? moment.tz(fecha, "America/Mexico_City").startOf("day").utc().format()
-    : moment.tz(fecha, "America/Mexico_City").endOf("day").utc().format();
+function obtenerRangoDiaPorFechaEnUTC(fecha) {
+  // Convertir la fecha a la zona horaria de México
+  const fechaMexico = moment.tz(fecha, "YYYY-MM-DD", "America/Mexico_City");
+
+  // Obtener el inicio y fin del día en México
+  const inicioLocal = fechaMexico.clone().startOf("day");
+  const finLocal = fechaMexico.clone().endOf("day");
+
+  // Convertir a UTC
+  const inicioUTC = inicioLocal.clone().utc().format("YYYY-MM-DD HH:mm:ss");
+  const finUTC = finLocal.clone().utc().format("YYYY-MM-DD HH:mm:ss");
+
+  return { inicio: inicioUTC, fin: finUTC };
 }
 
 exports.registrarCobro = async (req, res) => {
@@ -235,8 +243,8 @@ exports.obtenerCobrosPorDiaEId = async (req, res) => {
         .json({ message: "Se requiere una fecha y el ID del cobrador." });
     }
 
-    // Obtenemos el rango (inicio y fin) para la fecha dada en zona México
-    const { inicio, fin } = obtenerRangoDiaPorFecha(fecha);
+    // Usamos la nueva funcion que se creo
+    const { inicio, fin } = obtenerRangoDiaPorFechaEnUTC(fecha);
 
     console.log(
       "Buscando cobros entre:",
