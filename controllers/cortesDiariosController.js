@@ -119,7 +119,7 @@ exports.registrarCorteDiario = async (req, res) => {
       creditos_total_monto:
         deudoresController.calcularCreditosTotales(nuevosDeudores) || 0,
       primeros_pagos_total: nuevosDeudores.length,
-      primeros_pagos_monto: primerosPagosTotal,
+      primeros_pagos_montos: primerosPagosTotal,
       // primeros_pagos_monto: primerosPagosMontos || 0,
       nuevos_deudores: nuevosDeudores.length,
       deudores_totales: deudoresActivos,
