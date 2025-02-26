@@ -32,6 +32,30 @@ function obtenerRangoDiaPorFechaEnUTC(fecha) {
   return { inicio: inicioUTC, fin: finUTC };
 }
 
+// Agregar esta función en el controller
+function obtenerRangoSemanaPorFechaEnUTC(fecha) {
+  const fechaMexico = moment.tz(fecha, "YYYY-MM-DD", "America/Mexico_City");
+
+  // Obtener el miércoles anterior (semana pasada)
+  let inicioLocal = fechaMexico.clone().day(3); // 3 = miércoles
+  if (inicioLocal.isAfter(fechaMexico)) {
+    inicioLocal.subtract(1, "week"); // Si la fecha actual es antes del miércoles, retroceder una semana
+  }
+
+  // Obtener el miércoles siguiente (semana siguiente)
+  let finLocal = inicioLocal.clone().add(1, "week").day(3); // Próximo miércoles
+
+  // Ajustar horas para cubrir hasta las 23:59:59
+  inicioLocal.startOf("day");
+  finLocal.endOf("day");
+
+  // Convertir a UTC
+  return {
+    inicio: inicioLocal.utc().format("YYYY-MM-DD HH:mm:ss"),
+    fin: finLocal.utc().format("YYYY-MM-DD HH:mm:ss"),
+  };
+}
+
 exports.registrarCobro = async (req, res) => {
   try {
     console.log("Datos recibidos:", req.body);
@@ -256,6 +280,44 @@ exports.obtenerCobrosPorDiaEId = async (req, res) => {
     );
 
     // Consulta a la base de datos con el rango obtenido y filtrando por collector_id
+    const cobros = await Cobro.findAll({
+      where: {
+        collector_id,
+        payment_date: {
+          [Op.between]: [inicio, fin],
+        },
+      },
+    });
+
+    res.json({ cobros });
+  } catch (error) {
+    console.error("Error al obtener los cobros:", error);
+    res.status(500).json({ message: "Error al obtener los cobros." });
+  }
+};
+
+exports.obtenerCobrosPorSemanaEId = async (req, res) => {
+  try {
+    const { fecha, collector_id } = req.query;
+    if (!fecha || !collector_id) {
+      return res.status(400).json({
+        message: "Se requiere una fecha y el ID del cobrador.",
+      });
+    }
+
+    // Obtener rango semanal (miércoles a miércoles)
+    const { inicio, fin } = obtenerRangoSemanaPorFechaEnUTC(fecha);
+
+    console.log(
+      "Buscando cobros entre:",
+      inicio,
+      "y",
+      fin,
+      "para collector_id:",
+      collector_id
+    );
+
+    // Consulta a la base de datos
     const cobros = await Cobro.findAll({
       where: {
         collector_id,

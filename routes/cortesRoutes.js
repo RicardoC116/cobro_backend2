@@ -13,6 +13,9 @@ const {
 // CorteSemanal
 const {
   crearCorteSemanal,
+  crearPreCorteSemanal,
+  confirmarPreCorteSemanal,
+  eliminarPreCorteSemanal,
   obtenerCortesSemanales,
   deleteCorteSemanal,
   obtenerCortesSemanalPorCobrador,
@@ -34,6 +37,9 @@ router.delete("/diario/:id", deleteCorteDiario);
 
 // Semanales
 router.post("/semanal", crearCorteSemanal);
+router.post("/semanal/preCorte", crearPreCorteSemanal);
+router.post("/semanal/preCorte/:preCorteId", confirmarPreCorteSemanal);
+router.delete("/semanal/preCorte/:preCorteId", eliminarPreCorteSemanal);
 router.get("/semanal", obtenerCortesSemanales);
 router.get("/semanal/:id", obtenerCortesSemanalPorCobrador);
 router.delete("/semanal/:id", deleteCorteSemanal);
