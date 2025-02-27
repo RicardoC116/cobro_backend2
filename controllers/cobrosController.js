@@ -346,7 +346,7 @@ exports.obtenerCobrosPorDia = async (req, res) => {
     }
 
     // Obtenemos el rango (inicio y fin) para la fecha dada en zona México
-    const { inicio, fin } = obtenerRangoDiaPorFecha(fecha);
+    const { inicio, fin } = obtenerRangoDiaPorFechaEnUTC(fecha);
 
     console.log("Buscando cobros entre:", inicio, "y", fin);
 
