@@ -30,7 +30,7 @@ db.authenticate()
 
     // Sincronizar la base de datos
     return db
-      .sync({ alter: false }) // Alterar la estructura de la base de datos si es necesario
+      .sync({ alter: true }) // Alterar la estructura de la base de datos si es necesario
       .then(() => {
         console.log("Base de datos sincronizada correctamente.");
       })
