@@ -33,7 +33,7 @@ exports.crearCorteSemanal = async (req, res) => {
     const fin = DateTime.fromISO(fecha_fin, {
       zone: "America/Mexico_City",
     })
-      .startOf("day")
+      .endOf("day")
       .toUTC()
       .toISO();
 
@@ -79,9 +79,11 @@ exports.crearCorteSemanal = async (req, res) => {
     const cortesDiarios = await CorteDiario.findAll({
       where: {
         collector_id,
-        fecha: { [Op.between]: [fecha_inicio, fecha_fin] },
+        fecha: { [Op.between]: [inicio, fin] },
       },
     });
+
+    console.log("Buscando cortes diarios en el rango:", inicio, "y", fin);
 
     if (cortesDiarios.length === 0) {
       return res
@@ -188,7 +190,7 @@ exports.crearPreCorteSemanal = async (req, res) => {
     const fin = DateTime.fromISO(fecha_fin, {
       zone: "America/Mexico_City",
     })
-      .startOf("day")
+      .endOf("day")
       .toUTC()
       .toISO();
 
@@ -231,9 +233,11 @@ exports.crearPreCorteSemanal = async (req, res) => {
     const cortesDiarios = await CorteDiario.findAll({
       where: {
         collector_id,
-        fecha: { [Op.between]: [fecha_inicio, fecha_fin] },
+        fecha: { [Op.between]: [inicio, fin] },
       },
     });
+
+    console.log("Buscando cortes diarios en el rango:", inicio, "y", fin);
 
     if (cortesDiarios.length === 0) {
       return res
