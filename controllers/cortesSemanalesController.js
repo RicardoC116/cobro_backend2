@@ -2,8 +2,10 @@
 const CorteSemanal = require("../models/corteSemanalModel");
 const PreCorteSemanal = require("../models/preCorteSemanal");
 const CorteDiario = require("../models/corteDiarioModel");
-const { Op } = require("sequelize");
+const { Op, col, Sequelize } = require("sequelize");
 const { DateTime } = require("luxon");
+const Deudor = require("../models/deudorModel");
+const Cobro = require("../models/cobroModel");
 
 // Crear corte semanal
 exports.crearCorteSemanal = async (req, res) => {
@@ -208,12 +210,12 @@ exports.crearPreCorteSemanal = async (req, res) => {
       where: {
         collector_id,
         [Op.or]: [
-          { fecha_inicio: { [Op.between]: [fecha_inicio, fecha_fin] } },
-          { fecha_fin: { [Op.between]: [fecha_inicio, fecha_fin] } },
+          { fecha_inicio: { [Op.between]: [inicio, fin] } },
+          { fecha_fin: { [Op.between]: [inicio, fin] } },
           {
             [Op.and]: [
-              { fecha_inicio: { [Op.lte]: fecha_inicio } },
-              { fecha_fin: { [Op.gte]: fecha_fin } },
+              { fecha_inicio: { [Op.lte]: inicio } },
+              { fecha_fin: { [Op.gte]: fin } },
             ],
           },
         ],
@@ -249,7 +251,34 @@ exports.crearPreCorteSemanal = async (req, res) => {
       cortes.reduce((acc, corte) => acc + parseFloat(corte[campo] || 0), 0);
 
     const cobranzaTotal = sumarTotales(cortesDiarios, "cobranza_total");
-    const deudoresCobrados = sumarTotales(cortesDiarios, "deudores_cobrados");
+    // const deudoresCobrados = sumarTotales(cortesDiarios, "deudores_cobrados");
+    const deudoresCobrados = await Cobro.count({
+      distinct: true,
+      col: "debtor_id",
+      where: {
+        collector_id,
+        payment_date: { [Op.between]: [inicio, fin] },
+      },
+    });
+    
+    const calcularNopagosSemana = async (collector_id, inicio, fin) => {
+      const deudoresActivos = await Deudor.count({
+        where: { collector_id, balance: { [Op.gt]: 0 } },
+      });
+
+      const pagosSemana = await Cobro.findAll({
+        attributes: [
+          [Sequelize.fn("DISTINCT", Sequelize.col("debtor_id")), "debtor_id"],
+        ],
+        where: {
+          collector_id,
+          payment_date: { [Op.between]: [inicio, fin] },
+        },
+      });
+      return deudoresActivos - pagosSemana.length;
+    };
+    const noPagosTotal = await calcularNopagosSemana(collector_id, inicio, fin);
+
     const creditosTotal = sumarTotales(cortesDiarios, "creditos_total");
     const creditosTotalMonto = sumarTotales(
       cortesDiarios,
@@ -272,7 +301,7 @@ exports.crearPreCorteSemanal = async (req, res) => {
       cortesDiarios,
       "deudores_liquidados"
     );
-    const noPagosTotal = sumarTotales(cortesDiarios, "no_pagos_total");
+    // const noPagosTotal = sumarTotales(cortesDiarios, "no_pagos_total");
 
     const totalIngresos =
       cobranzaTotal + primerosPagosMonto - creditosTotalMonto;
@@ -325,9 +354,9 @@ exports.confirmarPreCorteSemanal = async (req, res) => {
 
     const nuevoCorteSemanal = await CorteSemanal.create({
       ...preCorte.toJSON(),
-      comision_cobro, // Ahora coincide con snake_case
-      comision_ventas,
-      gastos,
+      comision_cobro: parseFloat(comision_cobro), // Ahora coincide con snake_case
+      comision_ventas: parseFloat(comision_ventas),
+      gastos: parseFloat(gastos),
       total_gasto: totalGasto,
       saldo_final: saldoFinal,
       total_agente: totalGasto,

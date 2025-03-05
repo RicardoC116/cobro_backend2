@@ -96,7 +96,9 @@ exports.registrarCorteDiario = async (req, res) => {
     const deudoresLiquidados = cobros.filter(
       (c) => c.payment_type === "liquidación"
     ).length;
-    const deudoresActivos = await Deudor.count({ where: { collector_id } });
+    const deudoresActivos = await Deudor.count({
+      where: { collector_id, balance: { [Op.gt]: 0 } },
+    });
     const noPagosTotal = deudoresActivos - deudoresCobros.length;
 
     // 7. Definir "ahora" en hora local y su equivalente UTC para el corte
