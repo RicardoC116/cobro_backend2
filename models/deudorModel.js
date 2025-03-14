@@ -69,6 +69,22 @@ const Deudor = db.define(
       type: DataTypes.DATE,
       allowNull: true,
     },
+    aval: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    aval_phone: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    direccion: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    aval_direccion: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
   },
   {
     tableName: "debtors",

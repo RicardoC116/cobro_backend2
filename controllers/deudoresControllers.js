@@ -23,11 +23,14 @@ exports.createDeudor = async (req, res) => {
     amount,
     total_to_pay,
     first_payment,
-    balance,
     numero_telefono,
     suggested_payment,
     phone_number,
     payment_type,
+    aval,
+    aval_phone,
+    direccion,
+    aval_direccion,
   } = req.body;
 
   try {
@@ -36,7 +39,7 @@ exports.createDeudor = async (req, res) => {
       return res.status(404).json({ error: "Cobrador no encontrado." });
     }
 
-    const balanceInicial = balance - first_payment;
+    const balanceInicial = total_to_pay - first_payment;
 
     const deudor = await Deudor.create({
       contract_number,
@@ -49,6 +52,10 @@ exports.createDeudor = async (req, res) => {
       suggested_payment,
       collector_id: cobrador.id,
       payment_type,
+      aval,
+      aval_phone,
+      direccion,
+      aval_direccion,
     });
 
     res.status(201).json(deudor);
