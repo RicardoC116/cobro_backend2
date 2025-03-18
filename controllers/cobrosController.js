@@ -60,6 +60,24 @@ function obtenerRangoSemanaPorFechaEnUTC(fecha) {
   };
 }
 
+// Funcion para buscar cobros de la semana (Lunes a Domingo) de un cobrador
+function obtenerRangoSemanaLunesADomingo(fecha) {
+  const fechaMexico = moment.tz(fecha, "YYYY-MM-DD", "America/Mexico_City");
+
+  // Encontrar el lunes de la semana de la fecha dada
+  let inicioLocal = fechaMexico.clone().startOf("isoWeek");
+
+  // Calcular el fin de la semana
+  let finLocal = inicioLocal.clone().endOf("isoWeek");
+
+  // Convertir a UTC
+  return {
+    inicio: inicioLocal.utc().format("YYYY-MM-DD HH:mm:ss"),
+    fin: finLocal.utc().format("YYYY-MM-DD HH:mm:ss"),
+  };
+}
+
+// Registrar un cobro
 exports.registrarCobro = async (req, res) => {
   try {
     console.log("Datos recibidos:", req.body);
@@ -312,6 +330,80 @@ exports.obtenerCobrosPorSemanaEId = async (req, res) => {
     // Obtener rango semanal (miércoles a miércoles)
     const { inicio, fin } = obtenerRangoSemanaPorFechaEnUTC(fecha);
 
+    console.log(
+      "Buscando cobros entre:",
+      inicio,
+      "y",
+      fin,
+      "para collector_id:",
+      collector_id
+    );
+
+    // Consulta a la base de datos
+    const cobros = await Cobro.findAll({
+      where: {
+        collector_id,
+        payment_date: {
+          [Op.between]: [inicio, fin],
+        },
+      },
+    });
+
+    res.json({ cobros });
+  } catch (error) {
+    console.error("Error al obtener los cobros:", error);
+    res.status(500).json({ message: "Error al obtener los cobros." });
+  }
+};
+
+// Obtener cobros por semana (Lunes a domingo) sin ID
+exports.obtenerCobrosPorSemanaLunesADomingo = async (req, res) => {
+  try {
+    const { fecha } = req.query;
+    if (!fecha) {
+      return res.status(400).json({
+        message: "Se requiere una fecha.",
+      });
+    }
+
+    // Obtener rango semanal (lunes a domingo)
+    const { inicio, fin } = obtenerRangoSemanaLunesADomingo(fecha);
+    console.log(
+      "Buscando cobros entre:",
+      inicio,
+      "y",
+      fin,
+      "para collector_id:"
+    );
+
+    // Consulta a la base de datos
+    const cobros = await Cobro.findAll({
+      where: {
+        payment_date: {
+          [Op.between]: [inicio, fin],
+        },
+      },
+    });
+
+    res.json({ cobros });
+  } catch (error) {
+    console.error("Error al obtener los cobros:", error);
+    res.status(500).json({ message: "Error al obtener los cobros." });
+  }
+};
+
+// Obtener cobros por semana (Lunes a domingo) con ID
+exports.obtenerCobrosPorSemanaLunesADomingoID = async (req, res) => {
+  try {
+    const { fecha, collector_id } = req.query;
+    if (!fecha || !collector_id) {
+      return res.status(400).json({
+        message: "Se requiere una fecha y el ID del cobrador.",
+      });
+    }
+
+    // Obtener rango semanal (lunes a domingo)
+    const { inicio, fin } = obtenerRangoSemanaLunesADomingo(fecha);
     console.log(
       "Buscando cobros entre:",
       inicio,
