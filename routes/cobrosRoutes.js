@@ -14,6 +14,7 @@ const {
   obtenerCobrosPorSemanaEId,
   obtenerCobrosPorSemanaLunesADomingo,
   obtenerCobrosPorSemanaLunesADomingoID,
+  obtenerCobrosPorSemanaSinId,
 } = require("../controllers/cobrosController");
 
 // Ruta para obtener todos los cobros
@@ -27,6 +28,9 @@ router.get("/diaId", obtenerCobrosPorDiaEId);
 
 // Ruta para obtener los cobros por semana y cobrador
 router.get("/semanaId", obtenerCobrosPorSemanaEId);
+
+// Ruta para obtner los cobros de jueves a miercoles
+router.get("/juevesMiercoles", obtenerCobrosPorSemanaSinId);
 
 // Ruta para obtener los cobros por semana (Lunes Domingo) general
 router.get("/lunesDomingo", obtenerCobrosPorSemanaLunesADomingo);
