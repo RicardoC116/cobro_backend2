@@ -37,21 +37,28 @@ function obtenerRangoSemanaPorFechaEnUTC(fecha) {
   const fechaMexico = moment.tz(fecha, "YYYY-MM-DD", "America/Mexico_City");
 
   // Encontrar el miércoles de la semana de la fecha dada
-  let inicioLocal = fechaMexico.clone().day(3); // 3 = miércoles
+  let inicioLocal = fechaMexico.clone().day(4).startOf("day"); // 4 = jueves
+  // let inicioLocal = fechaMexico.clone().day(3); // 3 = miércoles
 
   // Si el miércoles encontrado es posterior a la fecha o es el mismo día (miércoles), restar una semana
-  if (
-    inicioLocal.isAfter(fechaMexico) ||
-    inicioLocal.isSame(fechaMexico, "day")
-  ) {
+  // if (
+  //   inicioLocal.isAfter(fechaMexico) ||
+  //   inicioLocal.isSame(fechaMexico, "day")
+  // ) {
+  //   inicioLocal.subtract(1, "week");
+  // }
+
+  if (inicioLocal.isAfter(fechaMexico)) {
     inicioLocal.subtract(1, "week");
   }
 
   // Calcular el fin como inicio + 1 semana al final del día
-  let finLocal = inicioLocal.clone().add(1, "week").endOf("day");
+  // let finLocal = inicioLocal.clone().add(1, "week").endOf("day");
+
+  let finLocal = inicioLocal.clone().add(6, "days").endOf("day");
 
   // Ajustar inicio al comienzo del día
-  inicioLocal.startOf("day");
+  // inicioLocal.startOf("day");
 
   // Convertir a UTC
   return {
