@@ -20,6 +20,28 @@ function obtenerRangoDiaActualLocal() {
   return { fechaInicioLocal, fechaFinLocal };
 }
 
+// Función genérica para obtener rango de cualquier fecha
+function obtenerRangoDia(fechaMoment) {
+  return {
+    fechaInicioLocal: fechaMoment
+      .clone()
+      .startOf("day")
+      .format("YYYY-MM-DD HH:mm:ss"),
+    fechaFinLocal: fechaMoment
+      .clone()
+      .endOf("day")
+      .format("YYYY-MM-DD HH:mm:ss"),
+  };
+}
+
+// Función para convertir a UTC
+function convertirLocalAUTC(fechaLocal) {
+  return moment
+    .tz(fechaLocal, "America/Mexico_City")
+    .utc()
+    .format("YYYY-MM-DD HH:mm:ss");
+}
+
 exports.registrarCorteDiario = async (req, res) => {
   const { collector_id } = req.body;
   if (!collector_id) {
@@ -152,65 +174,6 @@ exports.registrarCorteDiario = async (req, res) => {
   }
 };
 
-// Nueva función común
-async function procesarCorte(
-  collector_id,
-  fechaInicioUTC,
-  fechaFinUTC,
-  fechaAlmacenarUTC
-) {
-  // Obtener cobros
-  const cobros = await Cobro.findAll({
-    where: {
-      collector_id,
-      payment_date: {
-        [Op.gte]: fechaInicioUTC,
-        [Op.lt]: fechaFinUTC,
-      },
-    },
-  });
-
-  const deudoresCobros = Array.from(new Set(cobros.map((c) => c.debtor_id)));
-
-  // Obtener nuevos deudores
-  const nuevosDeudores = await deudoresController.obtenerNuevosDeudores(
-    collector_id,
-    fechaInicioUTC,
-    fechaFinUTC
-  );
-
-  // Cálculos
-  const cobranzaTotal = cobros.reduce(
-    (sum, c) => sum + parseFloat(c.amount),
-    0
-  );
-  const primerosPagosTotal = nuevosDeudores.reduce(
-    (sum, d) => sum + parseFloat(d.first_payment),
-    0
-  );
-  const liquidacionesTotal = cobros
-    .filter((c) => c.payment_type === "liquidación")
-    .reduce((sum, c) => sum + c.amount, 0);
-  const deudoresLiquidados = cobros.filter(
-    (c) => c.payment_type === "liquidación"
-  ).length;
-  const deudoresActivos = await Deudor.count({
-    where: { collector_id, balance: { [Op.gt]: 0 } },
-  });
-
-  return {
-    cobros,
-    nuevosDeudores,
-    deudoresCobros,
-    cobranzaTotal,
-    primerosPagosTotal,
-    liquidacionesTotal,
-    deudoresLiquidados,
-    deudoresActivos,
-    noPagosTotal: deudoresActivos - deudoresCobros.length,
-  };
-}
-
 exports.registrarCorteManual = async (req, res) => {
   const { collector_id, fecha_corte } = req.body;
 
@@ -221,34 +184,31 @@ exports.registrarCorteManual = async (req, res) => {
   }
 
   try {
-    // Validar fecha
-    const fechaCorteMoment = moment.tz(
+    // Validar y parsear fecha
+    const fechaCorte = moment.tz(
       fecha_corte,
       "YYYY-MM-DD",
       "America/Mexico_City"
     );
-
-    if (!fechaCorteMoment.isValid()) {
+    if (!fechaCorte.isValid()) {
       return res
         .status(400)
-        .json({ error: "Formato de fecha inválido. Use YYYY-MM-DD." });
+        .json({ error: "Fecha inválida. Formato: YYYY-MM-DD" });
+    }
+    if (fechaCorte.isAfter(moment().tz("America/Mexico_City"))) {
+      return res.status(400).json({ error: "No se permiten fechas futuras." });
     }
 
-    if (fechaCorteMoment.isAfter(moment().tz("America/Mexico_City"))) {
-      return res
-        .status(400)
-        .json({ error: "No se pueden hacer cortes para fechas futuras." });
-    }
+    // 1. Obtener rango del día MANUAL
+    const { fechaInicioLocal, fechaFinLocal } = obtenerRangoDia(fechaCorte);
 
-    // Calcular rangos
-    const { fechaInicioLocal, fechaFinLocal } =
-      obtenerRangoDia(fechaCorteMoment);
-    const { fechaInicioUTC, fechaFinUTC } = convertirRangoAUTC(
-      fechaInicioLocal,
-      fechaFinLocal
-    );
+    // 2. Convertir a UTC
+    const fechaInicioUTC = convertirLocalAUTC(fechaInicioLocal);
+    const fechaFinUTC = convertirLocalAUTC(fechaFinLocal);
 
-    // Verificar corte existente
+    console.log("📆 Rango Manual UTC:", fechaInicioUTC, "-", fechaFinUTC);
+
+    // 3. Verificar si ya existe corte para esa fecha
     const corteExistente = await CorteDiario.findOne({
       where: {
         collector_id,
@@ -262,21 +222,55 @@ exports.registrarCorteManual = async (req, res) => {
         .json({ error: `Ya existe un corte para ${fecha_corte}.` });
     }
 
-    // Procesar datos
-    const {
-      cobranzaTotal,
-      deudoresCobros,
-      nuevosDeudores,
-      liquidacionesTotal,
-      deudoresLiquidados,
-      deudoresActivos,
-      noPagosTotal,
-    } = await procesarCorte(collector_id, fechaInicioUTC, fechaFinUTC);
+    // 4. Obtener cobros del DÍA MANUAL
+    const cobros = await Cobro.findAll({
+      where: {
+        collector_id,
+        payment_date: { [Op.between]: [fechaInicioUTC, fechaFinUTC] },
+      },
+    });
+    console.log("🔍 Cobros encontrados:", cobros.length); // Debug
 
-    // Crear registro
+    // ... (El resto del código es IDÉNTICO a registrarCorteDiario desde aquí)
+    const deudoresCobros = Array.from(new Set(cobros.map((c) => c.debtor_id)));
+
+    const nuevosDeudores = await deudoresController.obtenerNuevosDeudores(
+      collector_id,
+      fechaInicioUTC,
+      fechaFinUTC
+    );
+    console.log("🔍 Nuevos deudores:", nuevosDeudores.length); // Debug
+
+    // Cálculos (igual que antes)
+    const cobranzaTotal = cobros.reduce(
+      (sum, c) => sum + parseFloat(c.amount),
+      0
+    );
+    // ... resto de cálculos
+
+    const primerosPagosMontos = nuevosDeudores.map((d) => d.first_payment);
+    // Sumamos los primeros pagos de los nuevos deudores
+    const primerosPagosTotal = primerosPagosMontos.reduce(
+      (sum, monto) => sum + parseFloat(monto),
+      0
+    );
+
+    const liquidacionesTotal = cobros
+      .filter((c) => c.payment_type === "liquidación")
+      .reduce((sum, c) => sum + parseFloat(c.amount), 0);
+    const deudoresLiquidados = cobros.filter(
+      (c) => c.payment_type === "liquidación"
+    ).length;
+    const deudoresActivos = await Deudor.count({
+      where: { collector_id, balance: { [Op.gt]: 0 } },
+    });
+    const noPagosTotal = deudoresActivos - deudoresCobros.length;
+
+    // 5. Registrar corte con fecha CORRECTA (usamos fechaInicioUTC en lugar de la actual)
     const corteDiario = await CorteDiario.create({
       collector_id,
-      fecha: fechaInicioUTC, // Usamos la fecha de inicio en UTC
+      fecha: fechaInicioUTC, // ¡Cambio crucial aquí!
+      // ... resto de campos igual
       cobranza_total: cobranzaTotal,
       deudores_cobrados: deudoresCobros.length,
       liquidaciones_total: liquidacionesTotal,
@@ -287,60 +281,27 @@ exports.registrarCorteManual = async (req, res) => {
         deudoresController.calcularCreditosTotales(nuevosDeudores) || 0,
       primeros_pagos_total: nuevosDeudores.length,
       primeros_pagos_montos: primerosPagosTotal,
+      // primeros_pagos_monto: primerosPagosMontos || 0,
       nuevos_deudores: nuevosDeudores.length,
       deudores_totales: deudoresActivos,
-    });
-
-    // Eliminar pre-cortes
-    await PreCorteDiario.destroy({
-      where: {
-        collector_id,
-        fecha: { [Op.between]: [fechaInicioUTC, fechaFinUTC] },
-      },
     });
 
     res.status(201).json({
       message: `Corte manual para ${fecha_corte} registrado.`,
       corteDiario,
-      detalles_fechas: {
-        local: { inicio: fechaInicioLocal, fin: fechaFinLocal },
-        utc: { inicio: fechaInicioUTC, fin: fechaFinUTC },
+      debug: {
+        rango_utc: `${fechaInicioUTC} - ${fechaFinUTC}`,
+        total_cobros: cobros.length,
       },
     });
   } catch (error) {
     console.error(`❌ Error en corte manual (${fecha_corte}):`, error);
-    res
-      .status(500)
-      .json({ error: "Error en corte manual.", detalle: error.message });
+    res.status(500).json({
+      error: "Error en corte manual.",
+      detalle: error.message,
+    });
   }
 };
-
-// Funciones auxiliares
-function obtenerRangoDia(fechaMoment) {
-  return {
-    fechaInicioLocal: fechaMoment
-      .clone()
-      .startOf("day")
-      .format("YYYY-MM-DD HH:mm:ss"),
-    fechaFinLocal: fechaMoment
-      .clone()
-      .endOf("day")
-      .format("YYYY-MM-DD HH:mm:ss"),
-  };
-}
-
-function convertirRangoAUTC(inicioLocal, finLocal) {
-  return {
-    fechaInicioUTC: moment
-      .tz(inicioLocal, "America/Mexico_City")
-      .utc()
-      .format("YYYY-MM-DD HH:mm:ss"),
-    fechaFinUTC: moment
-      .tz(finLocal, "America/Mexico_City")
-      .utc()
-      .format("YYYY-MM-DD HH:mm:ss"),
-  };
-}
 
 exports.obtenerCortesDiarios = async (req, res) => {
   try {
