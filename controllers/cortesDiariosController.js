@@ -35,12 +35,12 @@ function obtenerRangoDia(fechaMoment) {
 }
 
 // Función para convertir a UTC
-function convertirLocalAUTC(fechaLocal) {
-  return moment
-    .tz(fechaLocal, "America/Mexico_City")
-    .utc()
-    .format("YYYY-MM-DD HH:mm:ss");
-}
+// function convertirLocalAUTC(fechaLocal) {
+//   return moment
+//     .tz(fechaLocal, "America/Mexico_City")
+//     .utc()
+//     .format("YYYY-MM-DD HH:mm:ss");
+// }
 
 exports.registrarCorteDiario = async (req, res) => {
   const { collector_id } = req.body;
@@ -286,6 +286,7 @@ exports.registrarCorteManual = async (req, res) => {
       deudores_totales: deudoresActivos,
     });
 
+    console.log({ message: "El corte diario tiene estos datos", corteDiario });
     res.status(201).json({
       message: `Corte manual para ${fecha_corte} registrado.`,
       corteDiario,
