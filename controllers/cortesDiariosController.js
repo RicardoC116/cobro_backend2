@@ -181,7 +181,7 @@ exports.registrarCorteManual = async (req, res) => {
         .json({ error: "No se pueden hacer cortes para fechas futuras." });
     }
 
-    // 1. Calcular rangos del día deseado en local
+    // 1. Calcular rangos CORREGIDOS
     const fechaInicioLocal = fechaCorteMoment
       .clone()
       .startOf("day")
@@ -192,7 +192,7 @@ exports.registrarCorteManual = async (req, res) => {
       .endOf("day")
       .format("YYYY-MM-DD HH:mm:ss");
 
-    // 2. Convertir a UTC
+    // 2. Convertir a UTC CORREGIDO
     const fechaInicioUTC = moment
       .tz(fechaInicioLocal, "America/Mexico_City")
       .utc()
@@ -217,11 +217,14 @@ exports.registrarCorteManual = async (req, res) => {
       });
     }
 
-    // 4. Obtener cobros del día especificado (misma lógica que el corte automático pero con fechas manuales)
+    // 4. Modificar consulta de cobros (mejor usar gte y lt)
     const cobros = await Cobro.findAll({
       where: {
         collector_id,
-        payment_date: { [Op.between]: [fechaInicioUTC, fechaFinUTC] },
+        payment_date: {
+          [Op.gte]: fechaInicioUTC,
+          [Op.lt]: fechaFinUTC,
+        },
       },
     });
 
@@ -283,9 +286,11 @@ exports.registrarCorteManual = async (req, res) => {
     });
 
     // Solo cambiamos la fecha almacenada para que coincida con el día local del corte
+    // 3. Fecha a almacenar CORREGIDA
     const fechaAlmacenarUTC = fechaCorteMoment
-      .utc()
-      .startOf("day") // Almacenamos el inicio del día en UTC
+      .clone()
+      .startOf("day") // Primero en MX
+      .utc() // Luego a UTC
       .format("YYYY-MM-DD HH:mm:ss");
 
     const corteDiario = await CorteDiario.create({
