@@ -68,7 +68,7 @@ exports.registrarCorteDiario = async (req, res) => {
         payment_date: { [Op.between]: [fechaInicioUTC, fechaFinUTC] },
       },
     });
-    
+
     const deudoresCobros = Array.from(new Set(cobros.map((c) => c.debtor_id)));
 
     // 5. Obtener nuevos deudores (primeros pagos) dentro del rango UTC
@@ -224,6 +224,8 @@ exports.registrarCorteManual = async (req, res) => {
         payment_date: { [Op.between]: [fechaInicioUTC, fechaFinUTC] },
       },
     });
+
+    const deudoresCobros = Array.from(new Set(cobros.map((c) => c.debtor_id)));
 
     // ... (El resto de la lógica es igual que en registrarCorteDiario, manteniendo los UTC)
     // [Aquí iría todo el código desde el punto 4 hasta el 9 del original, usando las variables UTC]
