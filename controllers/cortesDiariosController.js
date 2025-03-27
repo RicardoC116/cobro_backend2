@@ -203,8 +203,8 @@ exports.registrarCorteManual = async (req, res) => {
     const { fechaInicioLocal, fechaFinLocal } = obtenerRangoDia(fechaCorte);
 
     // 2. Convertir a UTC
-    const fechaInicioUTC = convertirLocalAUTC(fechaInicioLocal);
-    const fechaFinUTC = convertirLocalAUTC(fechaFinLocal);
+    const fechaInicioUTC = fechaInicioLocal;
+    const fechaFinUTC = fechaFinLocal;
 
     console.log("📆 Rango Manual UTC:", fechaInicioUTC, "-", fechaFinUTC);
 
