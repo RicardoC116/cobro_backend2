@@ -1,8 +1,8 @@
 const CorteDiario = require("../models/corteDiarioModel");
 const Cobro = require("../models/cobroModel");
 const Deudor = require("../models/deudorModel");
-const { Op, Sequelize } = require("sequelize");
 const moment = require("moment-timezone");
+const { Op } = require("sequelize");
 
 exports.registrarCorteManual = async (req, res) => {
   const { collector_id, fecha_corte } = req.body;
@@ -14,80 +14,73 @@ exports.registrarCorteManual = async (req, res) => {
   }
 
   try {
-    // 1. Definir rango en hora local MX
+    // 1. Convertir fecha_corte a rango UTC equivalente al día en MX
     const fechaInicioMX = moment
       .tz(fecha_corte, "YYYY-MM-DD", "America/Mexico_City")
-      .startOf("day")
-      .format("YYYY-MM-DD HH:mm:ss");
-
+      .startOf("day");
     const fechaFinMX = moment
       .tz(fecha_corte, "YYYY-MM-DD", "America/Mexico_City")
-      .endOf("day")
-      .format("YYYY-MM-DD HH:mm:ss");
+      .endOf("day");
 
-    // 2. Consultar cobros CON conversión de timezone
+    const fechaInicioUTC = fechaInicioMX
+      .clone()
+      .utc()
+      .format("YYYY-MM-DD HH:mm:ss");
+    const fechaFinUTC = fechaFinMX.clone().utc().format("YYYY-MM-DD HH:mm:ss");
+
+    console.log("🔍 Rangos convertidos:", {
+      mx: `${fechaInicioMX.format()} a ${fechaFinMX.format()}`,
+      utc: `${fechaInicioUTC} a ${fechaFinUTC}`,
+    });
+
+    // 2. Verificar si ya existe el corte
+    const corteExistente = await CorteDiario.findOne({
+      where: {
+        collector_id,
+        fecha: { [Op.between]: [fechaInicioUTC, fechaFinUTC] },
+      },
+    });
+
+    if (corteExistente) {
+      return res
+        .status(400)
+        .json({ error: `Ya existe un corte para ${fecha_corte}.` });
+    }
+
+    // 3. Buscar cobros usando el mismo método que el corte automático
     const cobros = await Cobro.findAll({
       where: {
         collector_id,
-        [Op.and]: [
-          Sequelize.where(
-            Sequelize.fn(
-              "CONVERT_TZ",
-              Sequelize.col("payment_date"),
-              "+00:00",
-              "-06:00"
-            ),
-            ">=",
-            fechaInicioMX
-          ),
-          Sequelize.where(
-            Sequelize.fn(
-              "CONVERT_TZ",
-              Sequelize.col("payment_date"),
-              "+00:00",
-              "-06:00"
-            ),
-            "<=",
-            fechaFinMX
-          ),
-        ],
+        payment_date: {
+          [Op.gte]: fechaInicioUTC,
+          [Op.lt]: fechaFinUTC,
+        },
       },
       raw: true,
     });
 
-    console.log("🔍 Cobros con CONVERT_TZ:", cobros);
+    console.log(
+      "🔍 Cobros encontrados (CRUDO):",
+      cobros.map((c) => ({
+        id: c.id,
+        payment_date: c.payment_date,
+        amount: c.amount,
+      }))
+    );
 
-    // 3. Consultar nuevos deudores CON conversión
+    // 4. Buscar nuevos deudores en el mismo rango UTC
     const nuevosDeudores = await Deudor.findAll({
       where: {
         collector_id,
-        [Op.and]: [
-          Sequelize.where(
-            Sequelize.fn(
-              "CONVERT_TZ",
-              Sequelize.col("createdAt"),
-              "+00:00",
-              "-06:00"
-            ),
-            ">=",
-            fechaInicioMX
-          ),
-          Sequelize.where(
-            Sequelize.fn(
-              "CONVERT_TZ",
-              Sequelize.col("createdAt"),
-              "+00:00",
-              "-06:00"
-            ),
-            "<=",
-            fechaFinMX
-          ),
-        ],
+        createdAt: {
+          [Op.gte]: fechaInicioUTC,
+          [Op.lt]: fechaFinUTC,
+        },
       },
       raw: true,
     });
 
-    // 4. Cálculos (igual que antes)
+    // 5. Cálculos idénticos al corte automático
     const deudoresCobros = [...new Set(cobros.map((c) => c.debtor_id))];
     const cobranzaTotal = cobros.reduce(
       (sum, c) => sum + parseFloat(c.amount),
@@ -97,13 +90,10 @@ exports.registrarCorteManual = async (req, res) => {
       where: { collector_id, balance: { [Op.gt]: 0 } },
     });
 
-    // 5. Crear registro del corte (en UTC)
+    // 6. Crear registro del corte
     const corteDiario = await CorteDiario.create({
       collector_id,
-      fecha: moment
-        .tz(fechaInicioMX, "America/Mexico_City")
-        .utc()
-        .format("YYYY-MM-DD HH:mm:ss"),
+      fecha: fechaInicioUTC, // Guardar en UTC igual que el corte automático
       cobranza_total: cobranzaTotal,
       deudores_cobrados: deudoresCobros.length,
       liquidaciones_total: cobros
@@ -128,10 +118,13 @@ exports.registrarCorteManual = async (req, res) => {
     });
 
     res.status(201).json({
-      message: `Corte manual para ${fecha_corte} registrado exitosamente.`,
+      message: `Corte manual para ${fecha_corte} registrado.`,
       corteDiario: {
         ...corteDiario.toJSON(),
-        fecha: moment.utc(corteDiario.fecha).tz("America/Mexico_City").format(),
+        fecha: moment
+          .utc(corteDiario.fecha)
+          .tz("America/Mexico_City")
+          .format("YYYY-MM-DD HH:mm:ss"),
       },
     });
   } catch (error) {
