@@ -8,8 +8,10 @@ const {
   obtenerCortesDiarios,
   deleteCorteDiario,
   obtenerCortesPorCobrador,
-  registrarCorteManual,
 } = require("../controllers/cortesDiariosController");
+
+// Corte manual
+const { registrarCorteManual } = require("../controllers/cortesManuales");
 
 // CorteSemanal
 const {
