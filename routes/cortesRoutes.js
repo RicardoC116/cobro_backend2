@@ -4,6 +4,7 @@ const express = require("express");
 
 // CorteDiario
 const {
+  registrarCorteDiarioFechas,
   registrarCorteDiario,
   obtenerCortesDiarios,
   deleteCorteDiario,
@@ -33,6 +34,7 @@ const {
 
 const router = express.Router();
 
+router.post("/diarioFechas", registrarCorteDiarioFechas);
 router.post("/diario", registrarCorteDiario);
 router.post("/diario/corte-manual", registrarCorteManual);
 router.get("/diario", obtenerCortesDiarios);
