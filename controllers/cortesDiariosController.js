@@ -6,38 +6,36 @@ const { Op } = require("sequelize");
 const PreCorteDiario = require("../models/PreCorteDiarioModel");
 const moment = require("moment-timezone");
 
-// Función para obtener el inicio y fin del día en hora local (America/Mexico_City)
-function obtenerRangoDiaActualLocal() {
-  const ahora = moment().tz("America/Mexico_City");
-  const fechaInicioLocal = ahora
+// 🔹 Función para obtener el rango de un día en zona horaria de México
+function obtenerRangoDiaLocal(fecha) {
+  const dia = moment.tz(fecha, "America/Mexico_City");
+  const fechaInicioLocal = dia
     .clone()
     .startOf("day")
     .format("YYYY-MM-DD HH:mm:ss");
-  const fechaFinLocal = ahora
-    .clone()
-    .endOf("day")
-    .format("YYYY-MM-DD HH:mm:ss");
+  const fechaFinLocal = dia.clone().endOf("day").format("YYYY-MM-DD HH:mm:ss");
   return { fechaInicioLocal, fechaFinLocal };
 }
 
 exports.registrarCorteDiario = async (req, res) => {
-  const { collector_id } = req.body;
+  const { collector_id, fecha } = req.body;
+
   if (!collector_id) {
     return res
       .status(400)
       .json({ error: "El ID del cobrador es obligatorio." });
   }
-  try {
-    // 1. Obtener el rango del día en hora local
-    const { fechaInicioLocal, fechaFinLocal } = obtenerRangoDiaActualLocal();
-    console.log(
-      "📆 Rango Local: Inicio:",
-      fechaInicioLocal,
-      "Fin:",
-      fechaFinLocal
-    );
 
-    // 2. Convertir esos límites a UTC para las consultas
+  try {
+    // 🔹 Si no envían fecha, se usa la actual
+    const fechaSeleccionada =
+      fecha || moment().tz("America/Mexico_City").format("YYYY-MM-DD");
+
+    // 🔹 Obtener rango de la fecha seleccionada en horario local
+    const { fechaInicioLocal, fechaFinLocal } =
+      obtenerRangoDiaLocal(fechaSeleccionada);
+
+    // 🔹 Convertir a UTC para la consulta
     const fechaInicioUTC = moment
       .tz(fechaInicioLocal, "America/Mexico_City")
       .utc()
@@ -46,9 +44,15 @@ exports.registrarCorteDiario = async (req, res) => {
       .tz(fechaFinLocal, "America/Mexico_City")
       .utc()
       .format("YYYY-MM-DD HH:mm:ss");
-    console.log("📆 Rango UTC: Inicio:", fechaInicioUTC, "Fin:", fechaFinUTC);
 
-    // 3. Verificar si ya existe un corte para hoy (usamos los límites en UTC)
+    console.log(
+      `📅 Rango solicitado (${fechaSeleccionada}):`,
+      fechaInicioUTC,
+      "→",
+      fechaFinUTC
+    );
+
+    // 🔹 Verificar si ya existe un corte para esa fecha
     const corteExistente = await CorteDiario.findOne({
       where: {
         collector_id,
@@ -58,10 +62,12 @@ exports.registrarCorteDiario = async (req, res) => {
     if (corteExistente) {
       return res
         .status(400)
-        .json({ error: "Ya existe un corte diario para hoy." });
+        .json({
+          error: `Ya existe un corte para la fecha ${fechaSeleccionada}.`,
+        });
     }
 
-    // 4. Obtener todos los cobros del día, usando límites UTC
+    // 🔹 Buscar cobros del día
     const cobros = await Cobro.findAll({
       where: {
         collector_id,
@@ -71,21 +77,19 @@ exports.registrarCorteDiario = async (req, res) => {
 
     const deudoresCobros = Array.from(new Set(cobros.map((c) => c.debtor_id)));
 
-    // 5. Obtener nuevos deudores (primeros pagos) dentro del rango UTC
+    // 🔹 Nuevos deudores (primeros pagos)
     const nuevosDeudores = await deudoresController.obtenerNuevosDeudores(
       collector_id,
       fechaInicioUTC,
       fechaFinUTC
     );
 
-    // 6. Calcular totales y estadísticas
+    // 🔹 Totales
     const cobranzaTotal = cobros.reduce(
       (sum, c) => sum + parseFloat(c.amount),
       0
     );
-
     const primerosPagosMontos = nuevosDeudores.map((d) => d.first_payment);
-    // Sumamos los primeros pagos de los nuevos deudores
     const primerosPagosTotal = primerosPagosMontos.reduce(
       (sum, monto) => sum + parseFloat(monto),
       0
@@ -94,6 +98,7 @@ exports.registrarCorteDiario = async (req, res) => {
     const liquidacionesTotal = cobros
       .filter((c) => c.payment_type === "liquidación")
       .reduce((sum, c) => sum + parseFloat(c.amount), 0);
+
     const deudoresLiquidados = cobros.filter(
       (c) => c.payment_type === "liquidación"
     ).length;
@@ -102,17 +107,15 @@ exports.registrarCorteDiario = async (req, res) => {
     });
     const noPagosTotal = deudoresActivos - deudoresCobros.length;
 
-    // 7. Definir "ahora" en hora local y su equivalente UTC para el corte
-    const ahoraLocal = moment().tz("America/Mexico_City");
-    const fechaActualUTC = ahoraLocal
-      .clone()
+    // 🔹 Guardar corte con la fecha seleccionada (en UTC)
+    const fechaCorteUTC = moment
+      .tz(fechaSeleccionada, "America/Mexico_City")
       .utc()
       .format("YYYY-MM-DD HH:mm:ss");
 
-    // 8. Registrar el corte diario usando la hora actual en UTC
     const corteDiario = await CorteDiario.create({
       collector_id,
-      fecha: fechaActualUTC,
+      fecha: fechaCorteUTC,
       cobranza_total: cobranzaTotal,
       deudores_cobrados: deudoresCobros.length,
       liquidaciones_total: liquidacionesTotal,
@@ -123,12 +126,11 @@ exports.registrarCorteDiario = async (req, res) => {
         deudoresController.calcularCreditosTotales(nuevosDeudores) || 0,
       primeros_pagos_total: nuevosDeudores.length,
       primeros_pagos_montos: primerosPagosTotal,
-      // primeros_pagos_monto: primerosPagosMontos || 0,
       nuevos_deudores: nuevosDeudores.length,
       deudores_totales: deudoresActivos,
     });
 
-    // 9. Eliminar pre-cortes del día (usando límites UTC)
+    // 🔹 Eliminar pre-cortes de ese día
     await PreCorteDiario.destroy({
       where: {
         collector_id,
@@ -136,76 +138,17 @@ exports.registrarCorteDiario = async (req, res) => {
       },
     });
 
-    console.log("📅 Fecha guardada en corteDiario:", corteDiario.fecha);
-
-    console.log("✅ Corte Diario registrado exitosamente.", corteDiario);
-    res.status(201).json({
-      message: "Corte Diario registrado exitosamente.",
-      corteDiario,
-    });
+    console.log("✅ Corte registrado:", corteDiario.toJSON());
+    res
+      .status(201)
+      .json({ message: "Corte registrado exitosamente.", corteDiario });
   } catch (error) {
     console.error("❌ Error al registrar el corte diario:", error);
-    res.status(500).json({
-      error: "Error al registrar el corte diario.",
-      detalle: error.message,
-    });
-  }
-};
-
-exports.obtenerCortesDiarios = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const cortesDiarios = await CorteDiario.findAll({
-      where: { collector_id: id },
-      order: [["fecha", "DESC"]],
-    });
-    // Al enviar, convertimos de UTC a la zona local para mostrar
-    const cortesAjustados = cortesDiarios.map((corte) => ({
-      ...corte.toJSON(),
-      fecha: moment
-        .utc(corte.fecha)
-        .tz("America/Mexico_City")
-        .format("YYYY-MM-DD HH:mm:ss"),
-    }));
-    res.json(cortesAjustados);
-  } catch (error) {
-    console.error("❌ Error al obtener los cortes diarios:", error);
-    res.status(500).json({ error: "Error al obtener los cortes diarios." });
-  }
-};
-
-exports.obtenerCortesPorCobrador = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const cortes = await CorteDiario.findAll({
-      where: { collector_id: id },
-    });
-    const cortesAjustados = cortes.map((corte) => ({
-      ...corte.toJSON(),
-      fecha: moment
-        .utc(corte.fecha)
-        .tz("America/Mexico_City")
-        .format("YYYY-MM-DD HH:mm:ss"),
-    }));
-    res.json(cortesAjustados);
-  } catch (error) {
-    console.error("Error al obtener los cortes por cobrador:", error);
     res
       .status(500)
-      .json({ message: "Error al obtener los cobros por cobrador." });
-  }
-};
-
-exports.deleteCorteDiario = async (req, res) => {
-  const { id } = req.params;
-  try {
-    const corteDiario = await CorteDiario.findByPk(id);
-    if (!corteDiario) {
-      return res.status(404).json({ error: "❌ Corte diario no encontrado" });
-    }
-    await corteDiario.destroy();
-    res.json({ message: "✅ Corte diario eliminado exitosamente" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+      .json({
+        error: "Error al registrar el corte diario.",
+        detalle: error.message,
+      });
   }
 };
