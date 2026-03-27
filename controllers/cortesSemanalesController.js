@@ -125,16 +125,19 @@ exports.crearCorteSemanal = async (req, res) => {
 
     const totalIngresos =
       cobranzaTotal + primerosPagosMonto + creditosTotalMonto;
-    const totalGastos =
-      parseFloat(comision_cobro) +
-      parseFloat(comision_ventas) +
-      parseFloat(gastos);
+
+    // normalizar comisiones/gastos a número
+    const cCobro = parseFloat(comision_cobro) || 0;
+    const cVentas = parseFloat(comision_ventas) || 0;
+    const g = parseFloat(gastos) || 0;
+
+    const totalGastos = cCobro + cVentas + g;
     const saldoFinal = totalIngresos - totalGastos;
 
-    const totalAgente =
-      parseFloat(comision_cobro) +
-      parseFloat(comision_ventas) +
-      parseFloat(gastos);
+    const totalAgente = totalGastos;
+
+    // nuevo campo 'resto' = cobranza_total - (comisiones + gastos)
+    const resto = cobranzaTotal - totalGastos;
 
     const nuevoCorteSemanal = await CorteSemanal.create({
       collector_id,
@@ -152,13 +155,14 @@ exports.crearCorteSemanal = async (req, res) => {
       primeros_pagos_total: primerosPagosTotal,
       primeros_pagos_Monto: primerosPagosMonto,
       nuevos_deudores: nuevosDeudores,
-      comision_cobro,
-      comision_ventas,
-      gastos,
+      comision_cobro: cCobro,
+      comision_ventas: cVentas,
+      gastos: g,
       total_ingreso: totalIngresos,
       total_gasto: totalGastos,
       total_agente: totalAgente,
       saldo_final: saldoFinal,
+      resto, // guardamos el nuevo campo
     });
 
     res.status(201).json({
@@ -301,6 +305,7 @@ exports.crearPreCorteSemanal = async (req, res) => {
       cortesDiarios,
       "deudores_liquidados"
     );
+
     // const noPagosTotal = sumarTotales(cortesDiarios, "no_pagos_total");
 
     const totalIngresos =
@@ -352,14 +357,19 @@ exports.confirmarPreCorteSemanal = async (req, res) => {
 
     const saldoFinal = preCorte.total_ingreso - totalGasto;
 
+    // calcular 'resto' usando la cobranza registrada en el pre-corte (fallback a total_ingreso)
+    const cobranzaPre = parseFloat(preCorte.cobranza_total || preCorte.total_ingreso || 0);
+    const resto = cobranzaPre - totalGasto;
+
     const nuevoCorteSemanal = await CorteSemanal.create({
       ...preCorte.toJSON(),
-      comision_cobro: parseFloat(comision_cobro), // Ahora coincide con snake_case
-      comision_ventas: parseFloat(comision_ventas),
-      gastos: parseFloat(gastos),
+      comision_cobro: parseFloat(comision_cobro) || 0,
+      comision_ventas: parseFloat(comision_ventas) || 0,
+      gastos: parseFloat(gastos) || 0,
       total_gasto: totalGasto,
       saldo_final: saldoFinal,
       total_agente: totalGasto,
+      resto, // guardamos el nuevo campo
     });
 
     await PreCorteSemanal.destroy({ where: { id: preCorteId } });

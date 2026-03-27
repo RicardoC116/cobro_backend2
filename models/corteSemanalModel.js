@@ -4,7 +4,7 @@ const db = require("../db");
 const CorteSemanal = db.define("CorteSemanal", {
   collector_id: {
     type: DataTypes.INTEGER,
-    allowNull: false, 
+    allowNull: false,
   },
   fecha_inicio: {
     type: DataTypes.DATE,
@@ -75,8 +75,12 @@ const CorteSemanal = db.define("CorteSemanal", {
     defaultValue: 0.0,
   },
 
+  resto: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.0,
+  },
+
   saldo_final: {
-    // Cambia de "total_corte" a "saldo_final" para coincidir
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0.0,
   },
