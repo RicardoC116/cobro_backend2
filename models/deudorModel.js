@@ -85,11 +85,18 @@ const Deudor = db.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+
+    // Notificaciones
+    pushToken: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: null,
+    },
   },
   {
     tableName: "debtors",
     timestamps: true,
-  }
+  },
 );
 
 module.exports = Deudor;

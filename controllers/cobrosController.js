@@ -88,7 +88,6 @@ function obtenerRangoSemanaLunesADomingo(fecha) {
 exports.registrarCobro = async (req, res) => {
   try {
     console.log("Datos recibidos:", req.body);
-
     const { collector_id, debtor_id, amount, payment_date } = req.body;
 
     const cobrador = await Cobrador.findByPk(collector_id);
@@ -143,6 +142,35 @@ exports.registrarCobro = async (req, res) => {
     }
 
     await deudor.save();
+
+    // Envar notificacion
+
+    if (deudor.pushToken) {
+      try {
+        const message = {
+          to: deudor.pushToken,
+          sound: "default",
+          title: "¡Pago registrado!",
+          body: `Se ha registrado un pago de $${parseFloat(amount).toFixed(2)}, tu nuevo balance es $${parseFloat(nuevoBalance).toFixed(2)}.`,
+          data: { screen: "Pagos" }, 
+        };
+
+        await fetch("https://exp.host/--/api/v2/push/send", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Accept-encoding": "gzip, deflate",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(message),
+        });
+
+        console.log(`✅ Notificación push enviada al deudor ${debtor_id}`);
+      } catch (pushError) {
+        console.error("Error al enviar notificación push:", pushError);
+      }
+    }
+    // ============================================================================
 
     res.status(201).json({
       message: "Cobro registrado con éxito.",
@@ -305,7 +333,7 @@ exports.obtenerCobrosPorDiaEId = async (req, res) => {
       "y",
       fin,
       "para collector_id:",
-      collector_id
+      collector_id,
     );
 
     // Consulta a la base de datos con el rango obtenido y filtrando por collector_id
@@ -343,7 +371,7 @@ exports.obtenerCobrosPorSemanaEId = async (req, res) => {
       "y",
       fin,
       "para collector_id:",
-      collector_id
+      collector_id,
     );
 
     // Consulta a la base de datos
@@ -410,7 +438,7 @@ exports.obtenerCobrosPorSemanaLunesADomingo = async (req, res) => {
       inicio,
       "y",
       fin,
-      "para collector_id:"
+      "para collector_id:",
     );
 
     // Consulta a la base de datos
@@ -447,7 +475,7 @@ exports.obtenerCobrosPorSemanaLunesADomingoID = async (req, res) => {
       "y",
       fin,
       "para collector_id:",
-      collector_id
+      collector_id,
     );
 
     // Consulta a la base de datos
@@ -536,11 +564,11 @@ exports.obtenerCobrosEnRango = async (collector_id, fechaInicio, fechaFin) => {
 
 exports.calcularLiquidaciones = (cobros) => {
   const liquidaciones = cobros.filter(
-    (cobro) => cobro.payment_type === "liquidación"
+    (cobro) => cobro.payment_type === "liquidación",
   );
   const montoTotal = liquidaciones.reduce(
     (sum, cobro) => sum + parseFloat(cobro.amount),
-    0
+    0,
   );
 
   return {

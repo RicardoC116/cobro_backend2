@@ -77,7 +77,7 @@ exports.cambiarCobrador = async (req, res) => {
     if (!deudor) {
       console.log(
         "Deudor no encontrado con el número de contrato:",
-        contractNumber
+        contractNumber,
       );
       return res.status(404).json({ message: "Cliente no encontrado." });
     }
@@ -96,7 +96,7 @@ exports.cambiarCobrador = async (req, res) => {
     // Actualizar el cobrador en todos los cobros relacionados al deudor
     await Cobro.update(
       { collector_id: newCollectorId },
-      { where: { debtor_id: deudor.id } }
+      { where: { debtor_id: deudor.id } },
     );
 
     console.log("Actualización exitosa para el deudor y cobros asociados.");
@@ -296,6 +296,36 @@ exports.geContratoById = async (req, res) => {
   }
 };
 
+// Actualizar el push token para notificaciones
+exports.updatePushToken = async (req, res) => {
+  const { deudorId, pushToken } = req.body;
+
+  if (!deudorId || !pushToken) {
+    return res
+      .status(400)
+      .json({ error: "Se requieren deudorId y pushToken." });
+  }
+
+  try {
+    const deudor = await Deudor.findByPk(deudorId);
+    if (!deudor) {
+      return res.status(404).json({ error: "Deudor no encontrado." });
+    }
+
+    deudor.pushToken = pushToken;
+    await deudor.save();
+
+    console.log("Push token actualizado para deudor ID:", deudorId);
+
+    res.json({ message: "Push token actualizado con éxito." });
+  } catch (error) {
+    console.error("Error al actualizar el push token:", error);
+    res
+      .status(500)
+      .json({ error: "Error interno al actualizar el push token." });
+  }
+};
+
 exports.obtenerDeudoresActivos = async (collector_id) => {
   return await Deudor.findAll({
     where: {
@@ -316,24 +346,24 @@ exports.obtenerNuevosDeudores = async (collector_id, fechaInicio, fechaFin) => {
 
 exports.calcularPrimerosPagos = (nuevosDeudores) => {
   const deudoresConPago = nuevosDeudores.filter(
-    (deudor) => deudor.first_payment
+    (deudor) => deudor.first_payment,
   );
   console.log(
     "📌 Deudores con primeros pagos:",
     deudoresConPago.length,
-    deudoresConPago
+    deudoresConPago,
   );
 
   return deudoresConPago.reduce(
     (sum, deudor) => sum + parseFloat(deudor.first_payment),
-    0
+    0,
   );
 };
 
 exports.calcularCreditosTotales = (nuevosDeudores) => {
   return nuevosDeudores.reduce(
     (sum, deudor) => sum + parseFloat(deudor.amount || 0),
-    0
+    0,
   );
 };
 
