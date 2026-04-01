@@ -320,6 +320,12 @@ exports.updatePushToken = async (req, res) => {
       return res.status(404).json({ error: "Deudor no encontrado" });
     }
 
+    let tokens = deudor.pushTokens ? JSON.parse(deudor.pushTokens) : [];
+
+    if (!tokens.includes(pushToken)) {
+      tokens.push(pushToken);
+    }
+
     deudor.pushToken = pushToken;
     await deudor.save();
 

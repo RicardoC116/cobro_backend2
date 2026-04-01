@@ -147,25 +147,29 @@ exports.registrarCobro = async (req, res) => {
 
     if (deudor.pushToken) {
       try {
-        const message = {
-          to: deudor.pushToken,
-          sound: "default",
-          title: "¡Pago registrado!",
-          body: `Se ha registrado un pago de $${parseFloat(amount).toFixed(2)}, tu nuevo balance es $${parseFloat(nuevoBalance).toFixed(2)}.`,
-          data: { screen: "Pagos" }, 
-        };
+        let tokens = JSON.parse(deudor.pushTokens);
 
-        await fetch("https://exp.host/--/api/v2/push/send", {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            "Accept-encoding": "gzip, deflate",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(message),
-        });
+        for (let token of tokens) {
+          const message = {
+            to: deudor.pushToken,
+            sound: "default",
+            title: "¡Pago registrado!",
+            body: `Se ha registrado un pago de $${parseFloat(amount).toFixed(2)}, tu nuevo balance es $${parseFloat(nuevoBalance).toFixed(2)}.`,
+            data: { screen: "Pagos" },
+          };
 
-        console.log(`✅ Notificación push enviada al deudor ${debtor_id}`);
+          await fetch("https://exp.host/--/api/v2/push/send", {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Accept-encoding": "gzip, deflate",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(message),
+          });
+
+          console.log(`✅ Notificación push enviada al deudor ${debtor_id}`);
+        }
       } catch (pushError) {
         console.error("Error al enviar notificación push:", pushError);
       }
