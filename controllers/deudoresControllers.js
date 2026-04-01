@@ -298,31 +298,38 @@ exports.geContratoById = async (req, res) => {
 
 // Actualizar el push token para notificaciones
 exports.updatePushToken = async (req, res) => {
-  const { deudorId, pushToken } = req.body;
+  console.log("📥 Recibido en updatePushToken - Body completo:", req.body);
 
-  if (!deudorId || !pushToken) {
-    return res
-      .status(400)
-      .json({ error: "Se requieren deudorId y pushToken." });
+  const { debtorId, pushToken } = req.body;
+
+  console.log("debtorId recibido:", debtorId);
+  console.log("pushToken recibido:", pushToken);
+
+  if (!debtorId || !pushToken) {
+    console.log("❌ Faltan datos requeridos");
+    return res.status(400).json({
+      error: "Se requieren debtorId y pushToken",
+      received: { debtorId, pushToken },
+    });
   }
 
   try {
-    const deudor = await Deudor.findByPk(deudorId);
+    const deudor = await Deudor.findByPk(debtorId);
     if (!deudor) {
-      return res.status(404).json({ error: "Deudor no encontrado." });
+      console.log(`❌ Deudor ${debtorId} no encontrado`);
+      return res.status(404).json({ error: "Deudor no encontrado" });
     }
 
     deudor.pushToken = pushToken;
     await deudor.save();
 
-    console.log("Push token actualizado para deudor ID:", deudorId);
-
-    res.json({ message: "Push token actualizado con éxito." });
+    console.log(
+      `✅ Push token actualizado correctamente para deudor ${debtorId}`,
+    );
+    res.json({ message: "Push token actualizado con éxito" });
   } catch (error) {
-    console.error("Error al actualizar el push token:", error);
-    res
-      .status(500)
-      .json({ error: "Error interno al actualizar el push token." });
+    console.error("❌ Error al actualizar pushToken:", error);
+    res.status(500).json({ error: "Error interno al actualizar el token" });
   }
 };
 
