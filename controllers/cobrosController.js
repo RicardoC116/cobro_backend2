@@ -1,3 +1,4 @@
+// controllers/cobrosController.js
 const { DateTime } = require("luxon");
 const moment = require("moment-timezone");
 const Cobro = require("../models/cobroModel");
@@ -143,18 +144,17 @@ exports.registrarCobro = async (req, res) => {
 
     await deudor.save();
 
-    // Envar notificacion
-
+    // ====================== ENVÍO DE NOTIFICACIÓN PUSH ======================
     if (deudor.pushToken) {
       try {
-        let tokens = JSON.parse(deudor.pushTokens);
+        let tokens = JSON.parse(deudor.pushToken); 
 
         for (let token of tokens) {
           const message = {
-            to: deudor.pushToken,
+            to: token,
             sound: "default",
             title: "¡Pago registrado!",
-            body: `Se ha registrado un pago de $${parseFloat(amount).toFixed(2)}, tu nuevo balance es $${parseFloat(nuevoBalance).toFixed(2)}.`,
+            body: `Se ha registrado un pago de $${parseFloat(amount).toFixed(2)}. Tu nuevo balance es $${parseFloat(nuevoBalance).toFixed(2)}.`,
             data: { screen: "Pagos" },
           };
 
@@ -168,11 +168,13 @@ exports.registrarCobro = async (req, res) => {
             body: JSON.stringify(message),
           });
 
-          console.log(`✅ Notificación push enviada al deudor ${debtor_id}`);
+          console.log(`✅ Notificación push enviada al token: ${token}`);
         }
       } catch (pushError) {
         console.error("Error al enviar notificación push:", pushError);
       }
+    } else {
+      console.log(`El deudor ${debtor_id} no tiene tokens push registrados.`);
     }
     // ============================================================================
 

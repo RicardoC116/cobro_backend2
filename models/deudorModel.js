@@ -88,7 +88,7 @@ const Deudor = db.define(
 
     // Notificaciones
     pushToken: {
-      type: DataTypes.JSON,
+      type: DataTypes.TEXT,
       allowNull: true,
       defaultValue: null,
     },

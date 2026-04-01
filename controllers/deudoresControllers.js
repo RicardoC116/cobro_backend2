@@ -302,9 +302,6 @@ exports.updatePushToken = async (req, res) => {
 
   const { debtorId, pushToken } = req.body;
 
-  console.log("debtorId recibido:", debtorId);
-  console.log("pushToken recibido:", pushToken);
-
   if (!debtorId || !pushToken) {
     console.log("❌ Faltan datos requeridos");
     return res.status(400).json({
@@ -320,17 +317,20 @@ exports.updatePushToken = async (req, res) => {
       return res.status(404).json({ error: "Deudor no encontrado" });
     }
 
-    let tokens = deudor.pushTokens ? JSON.parse(deudor.pushTokens) : [];
+    // Convertir el campo TEXT a array
+    let tokens = deudor.pushToken ? JSON.parse(deudor.pushToken) : [];
 
+    // Agregar solo si no existe ya
     if (!tokens.includes(pushToken)) {
       tokens.push(pushToken);
     }
 
-    deudor.pushToken = pushToken;
+    // Guardar como JSON string
+    deudor.pushToken = JSON.stringify(tokens);
     await deudor.save();
 
     console.log(
-      `✅ Push token actualizado correctamente para deudor ${debtorId}`,
+      `✅ Tokens actualizados para deudor ${debtorId}. Total dispositivos: ${tokens.length}`,
     );
     res.json({ message: "Push token actualizado con éxito" });
   } catch (error) {
