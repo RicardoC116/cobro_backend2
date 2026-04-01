@@ -159,67 +159,56 @@ exports.renovarContratoDeudor = async (req, res) => {
 };
 
 // Actualizar un deudor
-exports.updateDeudor = async (req, res) => {
-  const { id } = req.params;
-  const updates = req.body;
+exports.updatePushToken = async (req, res) => {
+  console.log("📥 Recibido en updatePushToken - Body completo:", req.body);
+
+  const { debtorId, pushToken } = req.body;
+
+  if (!debtorId || !pushToken) {
+    console.log("❌ Faltan datos requeridos");
+    return res.status(400).json({
+      error: "Se requieren debtorId y pushToken",
+      received: { debtorId, pushToken },
+    });
+  }
 
   try {
-    const deudor = await Deudor.findByPk(id);
+    const deudor = await Deudor.findByPk(debtorId);
     if (!deudor) {
-      return res.status(404).json({ error: "Deudor no encontrado." });
+      console.log(`❌ Deudor ${debtorId} no encontrado`);
+      return res.status(404).json({ error: "Deudor no encontrado" });
     }
 
-    // Obtener total cobrado (suma de todos los cobros)
-    const totalCobrado =
-      (await Cobro.sum("amount", { where: { debtor_id: id } })) || 0;
-
-    // Campos permitidos para actualizar (sin balance)
-    const camposPermitidos = [
-      "contract_number",
-      "name",
-      "amount",
-      "total_to_pay",
-      "first_payment",
-      "numero_telefono",
-      "suggested_payment",
-      "collector_id",
-      "payment_type",
-    ];
-
-    // Aplicar solo campos enviados (ignorar balance)
-    camposPermitidos.forEach((campo) => {
-      if (updates[campo] !== undefined && updates[campo] !== "") {
-        deudor[campo] = updates[campo];
+    // Convertir el campo a array de forma segura
+    let tokens = [];
+    if (deudor.pushToken) {
+      try {
+        const parsed = JSON.parse(deudor.pushToken);
+        tokens = Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.warn(
+          `Warning: pushToken no era JSON válido para deudor ${debtorId}`,
+        );
+        tokens = [];
       }
-    });
-
-    // Recalcular balance automáticamente
-    const totalToPay = deudor.total_to_pay;
-    const firstPayment = deudor.first_payment;
-    const balance = totalToPay - (firstPayment + totalCobrado);
-
-    // Validar consistencia
-    if (firstPayment + totalCobrado > totalToPay) {
-      return res.status(400).json({
-        error:
-          "La suma del primer pago y los cobros no puede superar el total a pagar.",
-      });
     }
 
-    if (balance < 0 || firstPayment < 0 || totalToPay < 0) {
-      return res
-        .status(400)
-        .json({ error: "Los valores no pueden ser negativos." });
+    // Agregar el nuevo token solo si no existe
+    if (!tokens.includes(pushToken)) {
+      tokens.push(pushToken);
     }
 
-    // Actualizar balance automáticamente (no se permite enviarlo manualmente)
-    deudor.balance = balance;
-
+    // Guardar como JSON string
+    deudor.pushToken = JSON.stringify(tokens);
     await deudor.save();
-    res.json(deudor);
+
+    console.log(
+      `✅ Tokens actualizados para deudor ${debtorId}. Total dispositivos: ${tokens.length}`,
+    );
+    res.json({ message: "Push token actualizado con éxito" });
   } catch (error) {
-    console.error("Error al actualizar el deudor:", error);
-    res.status(500).json({ error: "Error interno al actualizar el deudor." });
+    console.error("❌ Error al actualizar pushToken:", error);
+    res.status(500).json({ error: "Error interno al actualizar el token" });
   }
 };
 
