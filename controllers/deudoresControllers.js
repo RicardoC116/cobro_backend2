@@ -159,56 +159,67 @@ exports.renovarContratoDeudor = async (req, res) => {
 };
 
 // Actualizar un deudor
-exports.updatePushToken = async (req, res) => {
-  console.log("📥 Recibido en updatePushToken - Body completo:", req.body);
-
-  const { debtorId, pushToken } = req.body;
-
-  if (!debtorId || !pushToken) {
-    console.log("❌ Faltan datos requeridos");
-    return res.status(400).json({
-      error: "Se requieren debtorId y pushToken",
-      received: { debtorId, pushToken },
-    });
-  }
+exports.updateDeudor = async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
 
   try {
-    const deudor = await Deudor.findByPk(debtorId);
+    const deudor = await Deudor.findByPk(id);
     if (!deudor) {
-      console.log(`❌ Deudor ${debtorId} no encontrado`);
-      return res.status(404).json({ error: "Deudor no encontrado" });
+      return res.status(404).json({ error: "Deudor no encontrado." });
     }
 
-    // Convertir el campo a array de forma segura
-    let tokens = [];
-    if (deudor.pushToken) {
-      try {
-        const parsed = JSON.parse(deudor.pushToken);
-        tokens = Array.isArray(parsed) ? parsed : [];
-      } catch (e) {
-        console.warn(
-          `Warning: pushToken no era JSON válido para deudor ${debtorId}`,
-        );
-        tokens = [];
+    // Obtener total cobrado (suma de todos los cobros)
+    const totalCobrado =
+      (await Cobro.sum("amount", { where: { debtor_id: id } })) || 0;
+
+    // Campos permitidos para actualizar (sin balance)
+    const camposPermitidos = [
+      "contract_number",
+      "name",
+      "amount",
+      "total_to_pay",
+      "first_payment",
+      "numero_telefono",
+      "suggested_payment",
+      "collector_id",
+      "payment_type",
+    ];
+
+    // Aplicar solo campos enviados (ignorar balance)
+    camposPermitidos.forEach((campo) => {
+      if (updates[campo] !== undefined && updates[campo] !== "") {
+        deudor[campo] = updates[campo];
       }
+    });
+
+    // Recalcular balance automáticamente
+    const totalToPay = deudor.total_to_pay;
+    const firstPayment = deudor.first_payment;
+    const balance = totalToPay - (firstPayment + totalCobrado);
+
+    // Validar consistencia
+    if (firstPayment + totalCobrado > totalToPay) {
+      return res.status(400).json({
+        error:
+          "La suma del primer pago y los cobros no puede superar el total a pagar.",
+      });
     }
 
-    // Agregar el nuevo token solo si no existe
-    if (!tokens.includes(pushToken)) {
-      tokens.push(pushToken);
+    if (balance < 0 || firstPayment < 0 || totalToPay < 0) {
+      return res
+        .status(400)
+        .json({ error: "Los valores no pueden ser negativos." });
     }
 
-    // Guardar como JSON string
-    deudor.pushToken = JSON.stringify(tokens);
+    // Actualizar balance automáticamente (no se permite enviarlo manualmente)
+    deudor.balance = balance;
+
     await deudor.save();
-
-    console.log(
-      `✅ Tokens actualizados para deudor ${debtorId}. Total dispositivos: ${tokens.length}`,
-    );
-    res.json({ message: "Push token actualizado con éxito" });
+    res.json(deudor);
   } catch (error) {
-    console.error("❌ Error al actualizar pushToken:", error);
-    res.status(500).json({ error: "Error interno al actualizar el token" });
+    console.error("Error al actualizar el deudor:", error);
+    res.status(500).json({ error: "Error interno al actualizar el deudor." });
   }
 };
 
@@ -285,7 +296,7 @@ exports.geContratoById = async (req, res) => {
   }
 };
 
-// Actualizar el push token para notificaciones
+// Actualizar push token - Versión MULTIPLES DISPOSITIVOS
 exports.updatePushToken = async (req, res) => {
   console.log("📥 Recibido en updatePushToken - Body completo:", req.body);
 
@@ -306,12 +317,26 @@ exports.updatePushToken = async (req, res) => {
       return res.status(404).json({ error: "Deudor no encontrado" });
     }
 
-    // Convertir el campo TEXT a array
-    let tokens = deudor.pushToken ? JSON.parse(deudor.pushToken) : [];
+    // Convertir el campo TEXT a array de forma segura
+    let tokens = [];
+    if (deudor.pushToken) {
+      try {
+        const parsed = JSON.parse(deudor.pushToken);
+        tokens = Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.warn(
+          `⚠️ pushToken no era JSON válido para deudor ${debtorId}, reiniciando lista`,
+        );
+        tokens = [];
+      }
+    }
 
-    // Agregar solo si no existe ya
+    // Agregar el token solo si no existe ya
     if (!tokens.includes(pushToken)) {
       tokens.push(pushToken);
+      console.log(`➕ Nuevo token agregado para deudor ${debtorId}`);
+    } else {
+      console.log(`🔄 Token ya existía para deudor ${debtorId}`);
     }
 
     // Guardar como JSON string
@@ -321,12 +346,17 @@ exports.updatePushToken = async (req, res) => {
     console.log(
       `✅ Tokens actualizados para deudor ${debtorId}. Total dispositivos: ${tokens.length}`,
     );
-    res.json({ message: "Push token actualizado con éxito" });
+    res.json({
+      message: "Push token actualizado con éxito",
+      totalDevices: tokens.length,
+    });
   } catch (error) {
     console.error("❌ Error al actualizar pushToken:", error);
     res.status(500).json({ error: "Error interno al actualizar el token" });
   }
 };
+
+// Funciones adicionales para métricas y análisis de deudores
 
 exports.obtenerDeudoresActivos = async (collector_id) => {
   return await Deudor.findAll({

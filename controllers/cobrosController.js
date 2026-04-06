@@ -144,31 +144,48 @@ exports.registrarCobro = async (req, res) => {
 
     await deudor.save();
 
-    // ====================== ENVÍO DE NOTIFICACIÓN PUSH ======================
+    // ====================== ENVÍO DE NOTIFICACIÓN PUSH (MÚLTIPLES DISPOSITIVOS) ======================
     if (deudor.pushToken) {
       try {
-        let tokens = JSON.parse(deudor.pushToken); 
+        let tokens = [];
+        try {
+          const parsed = JSON.parse(deudor.pushToken);
+          tokens = Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          tokens = [];
+        }
 
-        for (let token of tokens) {
-          const message = {
-            to: token,
-            sound: "default",
-            title: "¡Pago registrado!",
-            body: `Se ha registrado un pago de $${parseFloat(amount).toFixed(2)}. Tu nuevo balance es $${parseFloat(nuevoBalance).toFixed(2)}.`,
-            data: { screen: "Pagos" },
-          };
+        if (tokens.length > 0) {
+          for (let token of tokens) {
+            const message = {
+              to: token,
+              sound: "default",
+              title: "¡Pago registrado!",
+              body: `Se ha registrado un pago de $${parseFloat(amount).toFixed(2)}. Tu nuevo balance es $${parseFloat(nuevoBalance).toFixed(2)}.`,
+              data: { screen: "Pagos" },
+            };
 
-          await fetch("https://exp.host/--/api/v2/push/send", {
-            method: "POST",
-            headers: {
-              Accept: "application/json",
-              "Accept-encoding": "gzip, deflate",
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(message),
-          });
+            await fetch("https://exp.host/--/api/v2/push/send", {
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+                "Accept-encoding": "gzip, deflate",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(message),
+            });
 
-          console.log(`✅ Notificación push enviada al token: ${token}`);
+            console.log(
+              `✅ Notificación enviada al token: ${token.substring(0, 20)}...`,
+            );
+          }
+          console.log(
+            `📱 Notificaciones enviadas a ${tokens.length} dispositivo(s) del deudor ${debtor_id}`,
+          );
+        } else {
+          console.log(
+            `El deudor ${debtor_id} tiene pushToken pero no se pudo parsear.`,
+          );
         }
       } catch (pushError) {
         console.error("Error al enviar notificación push:", pushError);
