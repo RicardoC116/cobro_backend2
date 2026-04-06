@@ -161,7 +161,7 @@ exports.registrarCobro = async (req, res) => {
               to: token,
               sound: "default",
               title: "¡Pago registrado!",
-              body: `Se ha registrado un pago de $${parseFloat(amount).toFixed(2)}. Tu nuevo balance es $${parseFloat(nuevoBalance).toFixed(2)}.`,
+              body: `Se ha registrado un pago de $${parseFloat(amount).toFixed(2)}.`,
               data: { screen: "Pagos" },
             };
 
