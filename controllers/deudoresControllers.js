@@ -145,7 +145,7 @@ exports.renovarContratoDeudor = async (req, res) => {
     deudor.total_to_pay = nuevoTotalAPagar;
     deudor.first_payment = nuevoPrimerPago;
     deudor.balance = nuevoTotalAPagar - nuevoPrimerPago;
-    deudor.renovaciones = (deudor.renovaciones || 0) + 1; // Incrementar renovaciones
+    deudor.renovaciones = (deudor.renovaciones || 0) + 1; 
     await deudor.save();
 
     res.json({

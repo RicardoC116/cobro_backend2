@@ -7,12 +7,16 @@ const cobradoresRoutes = require("./routes/cobradoresRoutes");
 const deudoresRoutes = require("./routes/deudoresRoutes");
 const cobrosRoutes = require("./routes/cobrosRoutes");
 const cortesRoutes = require("./routes/cortesRoutes");
+const corteGeneralRoutes = require("./routes/corteGeneralRoutes");
 const db = require("./db");
+
+// ⚠️ IMPORTANTE: registrar asociaciones ANTES del db.sync()
+require("./models/associations");
 
 require("dotenv").config();
 
 // Middleware para habilitar CORS
-app.use(cors()); // Habilitar CORS para todas las rutas
+app.use(cors());
 
 // Middleware para parsear JSON
 app.use(express.json());
@@ -28,9 +32,8 @@ db.authenticate()
   .then(() => {
     console.log("Conexión exitosa a la base de datos");
 
-    // Sincronizar la base de datos
     return db
-      .sync({ alter: true }) // Alterar la estructura de la base de datos si es necesario
+      .sync({ alter: true })
       .then(() => {
         console.log("Base de datos sincronizada correctamente.");
       })
@@ -50,7 +53,10 @@ db.authenticate()
     // Rutas para Cobros
     app.use("/api/cobros", cobrosRoutes);
 
-    // Rutas para Cortes Diarios
+    // ⚠️ Montar PRIMERO la ruta específica para evitar conflictos con /api/cortes
+    app.use("/api/cortes-generales", corteGeneralRoutes);
+
+    // Rutas para Cortes Diarios / Semanales
     app.use("/api/cortes", cortesRoutes);
 
     // Iniciar el servidor solo si la conexión a la BD es exitosa

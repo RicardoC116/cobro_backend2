@@ -33,7 +33,7 @@ function obtenerRangoDiaPorFechaEnUTC(fecha) {
   return { inicio: inicioUTC, fin: finUTC };
 }
 
-// Agregar esta función en el controller
+// cobros virsac
 function obtenerRangoSemanaPorFechaEnUTC(fecha) {
   const fechaMexico = moment.tz(fecha, "YYYY-MM-DD", "America/Mexico_City");
 
