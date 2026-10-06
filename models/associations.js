@@ -5,7 +5,7 @@ const CorteGeneralAgente = require("./corteGeneralAgenteModel");
 const CorteGeneralGasto = require("./corteGeneralGastoModel");
 const MovimientoCapital = require("./movimientoCapitalModel");
 const CorteSemanal = require("./corteSemanalModel");
-const Cobrador = require("./collectorModel");
+const Cobrador = require("./cobradorModel");
 
 // ----- CorteGeneral ↔ hijos -----
 CorteGeneral.hasMany(CorteGeneralAgente, {

@@ -1,4 +1,4 @@
-// models/collectorModel.js
+// models/cobradorModel.js
 
 const { DataTypes } = require("sequelize");
 const db = require("../db");
